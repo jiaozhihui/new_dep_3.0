@@ -16,7 +16,7 @@ public class VidController {
     @RequestMapping("vid")
     @Async
     public String test1(int video_id) throws Exception {
-        Cleaned1.fun(video_id);  // TODO 如何让这个方法做成异步执行？？
+//        Cleaned1.fun(video_id);
         System.out.println(video_id);
         return "video_id：" + video_id + "，片段已生产完毕";
     }
