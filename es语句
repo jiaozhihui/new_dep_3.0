@@ -1,0 +1,64 @@
+#建mapping索引
+PUT video_wave
+{
+  "mappings": {
+    "doc":{
+      "properties": {
+                  "string_drama_name": {
+            "type": "keyword"
+          },
+          "string_drama_type_name": {
+            "type": "keyword"
+          },
+          "string_time": {
+            "type": "keyword"
+          },
+          "string_vid": {
+            "type": "keyword"
+          },
+          "string_class2_list": {
+            "type": "keyword"
+          },
+          "string_class_img_list": {
+            "type": "keyword"
+          },
+          "string_media_area_name": {
+            "type": "keyword"
+          },
+          "string_frame_img_list": {
+            "type": "keyword"
+          },
+          "string_time_long": {
+            "type": "keyword"
+          },
+          "media_name": {
+            "type": "keyword"
+          },
+          "string_class3_list": {
+            "type": "keyword"
+          }
+          }
+        }
+      }
+    }
+    
+# 删除索引
+DELETE video_wave
+    
+# 查询语句
+    GET _search
+{
+  "query": {
+    "constant_score":{
+      "filter":{
+        "bool":{
+          "must":[{"terms":{"string_drama_name":["电视剧"]}}],
+          "should":[]}
+      }
+    }
+  }
+}
+
+
+# 查看当前索引mapping
+GET newtest/_mapping
