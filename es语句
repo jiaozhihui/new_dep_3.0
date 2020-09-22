@@ -1,5 +1,5 @@
 #全局搜索
-GET _search
+GET video_wave/_search
 {
   "query": {
     "match_all": {}
@@ -23,7 +23,7 @@ GET _search
 }
 
 # 查看mapping
-GET newtest/_mapping
+GET video_wave/_mapping
 
 
 # 删除索引
