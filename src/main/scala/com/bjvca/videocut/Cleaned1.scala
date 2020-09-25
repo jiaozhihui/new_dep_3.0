@@ -27,12 +27,8 @@ import scala.util.Random
 
 object Cleaned1 extends Logging {
 
-  //  def fun(getVid: Int): Unit = {
   def main(args: Array[String]): Unit = {
 
-    val properties = new Properties()
-    properties.put("user", "root")
-    properties.put("password", "root")
 
     logWarning("VideoCutMain开始运行")
 
@@ -46,7 +42,6 @@ object Cleaned1 extends Logging {
       .master("local[*]")
       .config("spark.debug.maxToStringFields", "300")
       .getOrCreate()
-    SparkSession.clearDefaultSession()
 
     // 读取将要用到的表
     // 1.recognition2_behavior
@@ -136,21 +131,6 @@ object Cleaned1 extends Logging {
       .select($"videoId" as "video_id", $"originalUrl" as "media_addr")
       .createOrReplaceTempView("bbb")
 
-    // 拿到全部广告位数据
-    // 视频id、视频名、
-    // 开始时间、结束时间
-    // drama_name（剧集分类）, drama_type_name（剧集类型）
-    // media_area_name（地区名）, media_release_data（上映年份）
-    // 二级标签name
-    // 一级标签id（分类用）、三级标签name
-    //      .select($"video_id", $"media_name",
-    //      $"ad_seat_b_time", $"ad_seat_e_time",
-    //      $"drama_name", $"drama_type_name",
-    //      $"media_area_name", $"media_release_date",
-    //      $"class2_name",
-    //      $"class_type_id", $"class3_name",
-    //      $"ad_seat_img")
-    //      .createOrReplaceTempView("aaa")
 
     // 1.拿到所有的广告位 aaa
     spark.sql(
@@ -239,8 +219,6 @@ object Cleaned1 extends Logging {
       .collect()
     val array = filterList.map(_.get(0).toString)
 
-    // 广播出去ts的数组
-    val bFilterList = spark.sparkContext.broadcast(array)
 
     spark.sql(
       """
@@ -267,18 +245,6 @@ object Cleaned1 extends Logging {
     val mysqlRDD = spark.sql("select * from ccc")
       .toJSON
       .rdd
-
-    val reduced = mysqlRDD
-      .filter(x => {
-        //        过滤掉自定义标签
-        val key = JSON.parseObject(x).get("class_type_id").toString
-        key.equals("1") || key.equals("2") || key.equals("3") || key.equals("4")
-      })
-      // 过滤掉ts格式的视频
-      .filter(x => {
-        val vid = JSON.parseObject(x).get("video_id").toString
-        !bFilterList.value.contains(vid)
-      })
 
       // 处理数据为json格式，以video_id为key的元组
       .map(x => {
@@ -407,7 +373,7 @@ object Cleaned1 extends Logging {
         var endTime = ""
 
         // 遍历所有point点，进而增加或减少tempMap中的videocut，进而处理处新片段
-        for (i <- 0 until pointList2.size) {
+        for (i <- pointList2.indices) {
           val (pointTime, thisPoint) = pointList2(i)
           val pointType = thisPoint.get("point_type").toString
           val videocutKey = thisPoint.get("videocut_key").toString
@@ -517,18 +483,7 @@ object Cleaned1 extends Logging {
         x._2.toString
       })
 
-//      .map(x => CutBean(x._1,x._2.toString))
-//      .toDF()
-//      .write
-//      .mode(SaveMode.Append)
-//      .jdbc("jdbc:mysql://localhost:3306/video_cut?serverTimezone=GMT&characterEncoding=utf-8&useSSL=false", "videocut", properties)
-//      .jdbc("jdbc:mysql://localhost:3306/video_cut?serverTimezone=GMT&characterEncoding=utf-8&useSSL=false", "videocut", properties)
-
-//          .saveJsonToEs("videocut_new_cleaned/doc", Map(
-//            "es.index.auto.create" -> "true",
-//            "es.nodes" -> confUtil.adxStreamingEsHost,
-//            "es.port" -> "9200"
-          .saveJsonToEs("video_wave/doc", Map(
+          .saveJsonToEs("test/doc", Map(
 //            "es.index.auto.create" -> "true",
             "es.nodes" -> confUtil.adxStreamingEsHost,
             "es.user" -> confUtil.adxStreamingEsUser,
