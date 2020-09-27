@@ -14,7 +14,8 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 /**
- * 有问题，多标签不能合并
+ * 单标签
+ * 多标签不能合并
  */
 
 /**
@@ -484,7 +485,7 @@ object Cleaned1 extends Logging {
       })
 
 
-          .saveJsonToEs("test/doc", Map(
+          .saveJsonToEs("video_wave/doc", Map(
 //            "es.index.auto.create" -> "true",
             "es.nodes" -> confUtil.adxStreamingEsHost,
             "es.user" -> confUtil.adxStreamingEsUser,

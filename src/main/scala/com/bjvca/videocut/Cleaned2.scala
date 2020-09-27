@@ -9,7 +9,8 @@ import org.elasticsearch.spark._
 import scala.collection.mutable.ListBuffer
 
 /**
- * 多标签正常合成
+ * 多标签
+ * 正常合成
  */
 object Cleaned2 extends Logging {
 
@@ -301,7 +302,7 @@ object Cleaned2 extends Logging {
       /**
        * 核心逻辑
        *
-       * 间隔10秒内额标签都组合
+       * 间隔10秒内的标签都组合
        */
       .groupByKey()
       .mapValues(x => {
