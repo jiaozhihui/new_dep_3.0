@@ -40,7 +40,6 @@ object Cleaned1 extends Logging {
       .master("local[*]")
       .config("spark.debug.maxToStringFields", "300")
       .getOrCreate()
-    SparkSession.clearDefaultSession()
 
     // 读取将要用到的表
     // 1.recognition2_behavior
@@ -210,6 +209,15 @@ object Cleaned1 extends Logging {
       //      .filter(s"video_id = $video_id")
       .createOrReplaceTempView("aaa")
 
+    // 为后面过滤掉ts格式的视频
+    val filterList = spark.sql(
+      """
+        |SELECT * FROM bbb WHERE media_addr LIKE '%.ts'
+        |""".stripMargin)
+      .select("video_id")
+      .collect()
+    val array = filterList.map(_.get(0).toString)
+
 
     spark.sql(
       """
@@ -238,6 +246,7 @@ object Cleaned1 extends Logging {
       .rdd
 
 
+      // 处理数据为json格式，以video_id为key的元组
       .map(x => {
         val jsonArray = new JSONArray()
         val key = JSON.parseObject(x).get("video_id").toString
@@ -364,7 +373,7 @@ object Cleaned1 extends Logging {
         var endTime = ""
 
         // 遍历所有point点，进而增加或减少tempMap中的videocut，进而处理处新片段
-        for (i <- 0 until pointList2.size) {
+        for (i <- pointList2.indices) {
           val (pointTime, thisPoint) = pointList2(i)
           val pointType = thisPoint.get("point_type").toString
           val videocutKey = thisPoint.get("videocut_key").toString
