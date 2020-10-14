@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ScalaCompilerConfiguration">
-    <profile name="Maven 1" modules="new_dep,new_dep - 副本,new_dep1.0,untitled1" />
+    <profile name="Maven 1" modules="new_dep,new_dep - 副本,new_dep1.0,new_dep_3.0,untitled1" />
   </component>
 </project>

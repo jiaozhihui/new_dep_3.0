@@ -21,7 +21,6 @@ case class AdSeat(
  * drama_name: String,          视频类型名（电影电视剧）
  * drama_type_name: String,     视频风格名（武侠都市）
  * media_area_name: String,     地区名
- * media_release_date: String,  上映年份
  * class2_name: String,         二级标签名
  * class_type_id: String,       一级标签类型
  * class3_name: String,         三级标签名
