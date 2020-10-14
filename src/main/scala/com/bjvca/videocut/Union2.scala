@@ -21,7 +21,7 @@ import scala.util.Random
  * 不要会报异常，字段数量超出限制
  */
 
-object Cleaned2_union extends Logging {
+object Union2 extends Logging {
 
   def main(args: Array[String]): Unit = {
 
