@@ -2,9 +2,7 @@ package com.bjvca.videocut
 
 import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
 import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy}
-import com.bjvca.videocut.Cleaned3.logWarning
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.elasticsearch.spark._
 
@@ -308,7 +306,7 @@ object Cleaned_union2 extends Logging {
           val resultList = new JSONArray()
 
           var temp = videocutList(0)
-          for (i <- 1 until videocutList.size) {
+          for (i <- 1 until videocutList.length) {
             val thisseat = videocutList(i)
 
             if (thisseat.getString("ad_seat_b_time").toLong - temp.getString("ad_seat_e_time").toLong <= 0) {
@@ -342,7 +340,6 @@ object Cleaned_union2 extends Logging {
          * 7、整理得到最终的resultMap
          */
         .map(x => {
-          val vid = x._1
           val videocutJsonArray = x._2
 
           // 广告位的Map
@@ -359,7 +356,7 @@ object Cleaned_union2 extends Logging {
           // 遍历广告位数据，将所有起止点放到pointList中
           for (i <- 0 until videocutJsonArray.size()) {
             val jsonObject = JSON.parseObject(videocutJsonArray.get(i).toString)
-            val class3Name = jsonObject.get("class3_name").toString
+            //            val class3Name = jsonObject.get("class3_name").toString
             val bTime = jsonObject.get("ad_seat_b_time").toString
             val eTime = jsonObject.get("ad_seat_e_time").toString
 
@@ -425,7 +422,7 @@ object Cleaned_union2 extends Logging {
                 val file4 = thisObj.get("drama_type_name").asInstanceOf[String]
                 val file5 = thisObj.get("media_area_name").asInstanceOf[String]
                 //              val file6 = thisObj.get("media_release_date").toString
-                val file7 = thisObj.get("class_type_id").toString
+                //                val file7 = thisObj.get("class_type_id").toString
                 val file8 = thisObj.get("class3_name").asInstanceOf[String]
                 val file9 = thisObj.get("class2_name").asInstanceOf[String]
                 val file10 = thisObj.get("ad_seat_img").asInstanceOf[String]
@@ -496,29 +493,29 @@ object Cleaned_union2 extends Logging {
         })
 
 
-        /**
-         * Cleaned1 单标签合成
-         */
+      /**
+       * Cleaned1 单标签合成
+       */
 
 
       rst1.saveJsonToEs("video_wave/doc", Map(
-          //            "es.index.auto.create" -> "true",
-          "es.nodes" -> confUtil.adxStreamingEsHost,
-          "es.user" -> confUtil.adxStreamingEsUser,
-          "es.password" -> confUtil.adxStreamingEsPassword,
-          "es.port" -> "9200"
-          //                "es.mapping.id" -> ""
-        ))
+        //            "es.index.auto.create" -> "true",
+        "es.nodes" -> confUtil.adxStreamingEsHost,
+        "es.user" -> confUtil.adxStreamingEsUser,
+        "es.password" -> confUtil.adxStreamingEsPassword,
+        "es.port" -> "9200"
+        //                "es.mapping.id" -> ""
+      ))
 
       // 统计生成的视频片段数
       var rddNum = 0
       rst1.mapPartitionsWithIndex {
         (partIdx, iter) => {
-          var part_map = scala.collection.mutable.Map[String, Int]()
+          val part_map = scala.collection.mutable.Map[String, Int]()
           while (iter.hasNext) {
-            var part_name = "part_" + partIdx;
+            val part_name = "part_" + partIdx
             if (part_map.contains(part_name)) {
-              var ele_cnt = part_map(part_name)
+              val ele_cnt = part_map(part_name)
               part_map(part_name) = ele_cnt + 1
             } else {
               part_map(part_name) = 1
@@ -556,7 +553,7 @@ object Cleaned_union2 extends Logging {
           // 转换成数组然后排序
           val seatSorted = x.toList.sortBy(_.ad_seat_b_time.toLong)
 
-          var temp: AdSeat = seatSorted(0)
+          var temp: AdSeat = seatSorted.head
           val result = scala.collection.mutable.ListBuffer[AdSeat]()
 
           for (i <- 1 until seatSorted.size) {
@@ -591,12 +588,12 @@ object Cleaned_union2 extends Logging {
           val seatSorted = x.toList.sortBy(_.ad_seat_b_time.toLong)
 
           // 最终返回的数据resultList
-          var resultList = ListBuffer[ListBuffer[AdSeat]]()
+          val resultList = ListBuffer[ListBuffer[AdSeat]]()
 
-          var temp = new ListBuffer[AdSeat]()
-          temp.append(seatSorted(0))
+          val temp = new ListBuffer[AdSeat]()
+          temp.append(seatSorted.head)
 
-          var maxETime: String = seatSorted(0).ad_seat_e_time
+          var maxETime: String = seatSorted.head.ad_seat_e_time
 
           // 遍历所有point点，进而增加或减少tempMap中的adseat，进而处理处新片段
           for (i <- 1 until seatSorted.size) {
@@ -621,15 +618,15 @@ object Cleaned_union2 extends Logging {
         })
         .flatMap(x => x._2)
         .map(x => CuterUtils2.seatToJSON(x))
-        .filter(x => x.asInstanceOf[JSONObject].getString("string_time_long").toLong >= 1000)
+        .filter(x => x.getString("string_time_long").toLong >= 1000)
         .map(_.toString)
 
-//       多标签写入ES库
+      //       多标签写入ES库
       rst.saveJsonToEs("video_wave/doc", Map(
-          "es.index.auto.create" -> "true",
-          "es.nodes" -> confUtil.adxStreamingEsHost,
-          "es.port" -> "9200"
-        ))
+        "es.index.auto.create" -> "true",
+        "es.nodes" -> confUtil.adxStreamingEsHost,
+        "es.port" -> "9200"
+      ))
 
       // 修改task表status为1
       rst.foreach(s => {
@@ -655,11 +652,11 @@ object Cleaned_union2 extends Logging {
       // 统计生成的视频片段数
       rst.mapPartitionsWithIndex {
         (partIdx, iter) => {
-          var part_map = scala.collection.mutable.Map[String, Int]()
+          val part_map = scala.collection.mutable.Map[String, Int]()
           while (iter.hasNext) {
-            var part_name = "part_" + partIdx;
+            val part_name = "part_" + partIdx
             if (part_map.contains(part_name)) {
-              var ele_cnt = part_map(part_name)
+              val ele_cnt = part_map(part_name)
               part_map(part_name) = ele_cnt + 1
             } else {
               part_map(part_name) = 1
