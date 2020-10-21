@@ -9,7 +9,7 @@ import scala.collection.mutable.ListBuffer
  */
 object CuterUtils2 {
 
-  def seatToJSON(seats: ListBuffer[AdSeat]) = {
+  def seatToJSON(seats: ListBuffer[AdSeat]): JSONObject = {
 
     val temp = new JSONObject()
 
@@ -28,8 +28,8 @@ object CuterUtils2 {
 //    val actionImgList = new JSONArray()
 //    val senceImgList = new JSONArray()
 
-    var minBTime: String = seats(0).ad_seat_b_time
-    var maxETime: String = seats(0).ad_seat_e_time
+    var minBTime: String = seats.head.ad_seat_b_time
+    var maxETime: String = seats.head.ad_seat_e_time
 
     for (seat <- seats) {
 
