@@ -259,6 +259,13 @@ object SubCut extends Logging {
         |group by video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end
         |""".stripMargin)
       .createOrReplaceTempView("a1")
+//
+//    // 准备将要进行分组的字段
+//    spark.sql(
+//      """
+//        |select *, totaltime/(story_end - story_start) appearRate
+//        |from a1
+//        |""".stripMargin)
 
     // 组内排序
     spark.sql(
