@@ -251,7 +251,8 @@ object SubCut extends Logging {
     // 分组求和
     spark.sql(
       """
-        |select video_id, media_name, drama_name, drama_type_name, media_area_name, class2_name, class_type_id, class3_name, first(ad_seat_img) ad_seat_img, first(ad_seat_b_time) ad_seat_b_time, first(ad_seat_e_time) ad_seat_e_time, story_start, story_end, sum(ad_seat_e_time - ad_seat_b_time) totaltime
+        |select video_id, media_name, drama_name, drama_type_name, media_area_name, class2_name, class_type_id, first(ad_seat_img) ad_seat_img, first(ad_seat_b_time) ad_seat_b_time, first(ad_seat_e_time) ad_seat_e_time, story_start, story_end, sum(ad_seat_e_time - ad_seat_b_time) totaltime,
+        |       concat_ws('',concat_ws(',',collect_set(class_type_id)),concat_ws(',',collect_set(class3_name))) as class3_name
         |from a0
         |where ad_seat_b_time > story_start
         |  and ad_seat_e_time < story_end
@@ -291,7 +292,6 @@ object SubCut extends Logging {
         |FROM a3
         |GROUP BY drama_name,drama_type_name,video_id,media_area_name,story_start,story_end,media_name
         |""".stripMargin)
-      //      .show()
       .toJSON
       .rdd
       .map(x => {
@@ -312,11 +312,37 @@ object SubCut extends Logging {
         val class2_list = oldObject.getString("class2_name").split(',').toList
 
         val string_class3_list = new JSONArray()
+        val manList = new JSONArray()
+        val objectList = new JSONArray()
+        val actionList = new JSONArray()
+        val senceList = new JSONArray()
+
         val string_class_img_list = new JSONArray()
         val string_class2_list = new JSONArray()
 
         for (i <- class3_list) {
-          string_class3_list.add(i)
+          i.substring(0,1) match {
+            case "4" =>
+              manList.add(i.substring(1))
+            //          man2List.add(file9)
+            //          manImgList.add(file10)
+            case "1" =>
+              objectList.add(i.substring(1))
+            //          object2List.add(file9)
+            //          objectImgList.add(file10)
+            case "3" =>
+              actionList.add(i.substring(1))
+            //          action2List.add(file9)
+            //          actionImgList.add(file10)
+            case "2" =>
+              senceList.add(i.substring(1))
+            //          sence2List.add(file9)
+            //          senceImgList.add(file10)
+          }
+        }
+
+        for (i <- class3_list) {
+          string_class3_list.add(i.substring(1))
         }
         for (i <- class_img_list) {
           string_class_img_list.add(i)
@@ -333,6 +359,10 @@ object SubCut extends Logging {
         newObject.put("string_time", string_time)
         newObject.put("string_long", string_long)
         newObject.put("string_class3_list", string_class3_list)
+        newObject.put("string_man_list", manList)
+        newObject.put("string_object_list", objectList)
+        newObject.put("string_action_list", actionList)
+        newObject.put("string_sence_list", senceList)
         newObject.put("string_class2_list", string_class2_list)
         newObject.put("string_class_img_list", string_class_img_list)
 
@@ -348,8 +378,6 @@ object SubCut extends Logging {
         "es.password" -> confUtil.adxStreamingEsPassword,
         "es.port" -> "9200"
       ))
-
-
     spark.close()
 
 
