@@ -4,6 +4,7 @@ package com.bjvca.videocut
 import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
 import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy}
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.elasticsearch.spark._
 
@@ -22,7 +23,7 @@ object AllCleand extends Logging {
 
     logWarning("开始合成")
 
-//        var i = 0
+        var i = 0
 
         while (true) {
 
@@ -37,8 +38,8 @@ object AllCleand extends Logging {
       .config("spark.debug.maxToStringFields", "200")
       .getOrCreate()
 
-//          i = i + 1
-//          logWarning("第" + i + "次合并任务开始...")
+          i = i + 1
+          logWarning("第" + i + "次合并任务开始...")
 
           // 0.读取任务表
           spark.read.format("jdbc")
@@ -447,7 +448,7 @@ object AllCleand extends Logging {
               tempJsonObj.put("string_media_area_name", file5)
               //              tempJsonObj.put("string_media_release_date", file6)
               tempJsonObj.put("string_time", newbegin + "_" + newend)
-              tempJsonObj.put("string_time_long", (newend.toLong - newbegin.toLong).toString)
+              tempJsonObj.put("string_time_long", newend.toLong - newbegin.toLong)
               tempJsonObj.put("resourceId", "1")
 
               class3List.add(file8)
@@ -526,7 +527,7 @@ object AllCleand extends Logging {
       })
       .flatMap(x => x.toArray[(String, JSONObject)])
       // 过滤掉时长小于1000毫秒的
-      .filter(x => x._2.asInstanceOf[JSONObject].getString("string_time_long").toLong >= 1000)
+      .filter(x => x._2.asInstanceOf[JSONObject].getInteger("string_time_long") >= 1000)
       .map(x => {
         x._2.toString
       })
@@ -550,7 +551,7 @@ object AllCleand extends Logging {
             val sqlProxy = new SqlProxy()
             val client = DataSourceUtil.getConnection
             try {
-              sqlProxy.executeUpdate(client, "update task set fragment=?,total=total+? where video_id=?",
+              sqlProxy.executeUpdate(client, "update task set fragment=?,total=total+?,status=1 where video_id=?",
                 Array(fragment,fragment,vid))
             }
             catch {
@@ -672,7 +673,7 @@ object AllCleand extends Logging {
       })
       .flatMap(x => x._2)
       .map(x => CuterUtils3.seatToJSON(x))
-      .filter(x => x.getString("string_time_long").toLong >= 1000)
+      .filter(x => x.getInteger("string_time_long") >= 1000)
       .map(_.toString)
 
     //       多标签写入ES库
@@ -691,7 +692,7 @@ object AllCleand extends Logging {
             val sqlProxy = new SqlProxy()
             val client = DataSourceUtil.getConnection
             try {
-              sqlProxy.executeUpdate(client, "update task set fragment=fragment + ?,total=total+? where video_id=?",
+              sqlProxy.executeUpdate(client, "update task set fragment=fragment + ?,total=total+?,status=1 where video_id=?",
                 Array(fragment,fragment,vid))
             }
             catch {
@@ -723,7 +724,6 @@ object AllCleand extends Logging {
 //    )
 
 
-//          logWarning("第" + i + "次合并任务完成，增加了" + fragment + "段视频")
 
 
     /**
@@ -879,7 +879,7 @@ object AllCleand extends Logging {
                     |       concat_ws('_',story_start,story_end) string_time,
                     |       video_id string_vid,
                     |       media_area_name string_media_area_name,
-                    |       story_end - story_start string_long,
+                    |       story_end - story_start string_time_long,
                     |       media_name,
                     |       concat_ws(',',collect_set(class_type_id)) as class_type_id,
                     |       concat_ws(',',collect_set(class3_name)) as class3_name,
@@ -900,7 +900,7 @@ object AllCleand extends Logging {
                     val string_time = oldObject.getString("string_time")
                     val string_vid = oldObject.getString("string_vid")
                     val string_media_area_name = oldObject.getString("string_media_area_name")
-                    val string_long = oldObject.getString("string_long")
+                    val string_time_long = oldObject.getInteger("string_time_long")
                     val media_name = oldObject.getString("media_name")
 
                     val class3_list = oldObject.getString("class3_name").split(',').toList
@@ -954,7 +954,7 @@ object AllCleand extends Logging {
                     newObject.put("string_drama_type_name", string_drama_type_name)
                     newObject.put("string_media_area_name", string_media_area_name)
                     newObject.put("string_time", string_time)
-                    newObject.put("string_long", string_long)
+                    newObject.put("string_time_long", string_time_long)
                     newObject.put("string_class3_list", string_class3_list)
                     newObject.put("string_man_list", manList)
                     newObject.put("string_object_list", objectList)
@@ -1052,6 +1052,31 @@ object AllCleand extends Logging {
 //                    sqlProxy.shutdown(client)
 //                  }
 //                })
+
+          spark.sql(
+            """
+              |select *
+              |from task
+              |""".stripMargin)
+            .toJSON
+            .rdd
+              .foreach(str => {
+                val nObject = JSON.parseObject(str)
+                val vid = nObject.getString("video_id")
+
+                val sqlProxy = new SqlProxy()
+                val client = DataSourceUtil.getConnection
+                try {
+                  sqlProxy.executeUpdate(client, "update task set status=1 where video_id=?",
+                    Array(vid))
+                }
+                catch {
+                  case e: Exception => e.printStackTrace()
+                } finally {
+                  sqlProxy.shutdown(client)
+                }
+              })
+
 
 
           Thread.sleep(5000)
