@@ -292,8 +292,8 @@ object SubCut extends Logging {
         |FROM a3
         |GROUP BY drama_name,drama_type_name,video_id,media_area_name,story_start,story_end,media_name
         |""".stripMargin)
-      .toJSON
-      .rdd
+    .toJSON
+    .rdd
       .map(x => {
         val newObject = new JSONObject()
 
@@ -304,7 +304,7 @@ object SubCut extends Logging {
         val string_time = oldObject.getString("string_time")
         val string_vid = oldObject.getString("string_vid")
         val string_media_area_name = oldObject.getString("string_media_area_name")
-        val string_long = oldObject.getString("string_long")
+        val string_long = oldObject.getString("string_time_long")
         val media_name = oldObject.getString("media_name")
 
         val class3_list = oldObject.getString("class3_name").split(',').toList
@@ -366,6 +366,8 @@ object SubCut extends Logging {
         newObject.put("string_class2_list", string_class2_list)
         newObject.put("string_class_img_list", string_class_img_list)
 
+        newObject.put("resourceId", "2")
+
         newObject.toString
 
       })
@@ -379,7 +381,6 @@ object SubCut extends Logging {
         "es.port" -> "9200"
       ))
     spark.close()
-
 
     //      Thread.sleep(5000)
 

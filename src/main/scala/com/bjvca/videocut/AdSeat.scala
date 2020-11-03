@@ -2,6 +2,8 @@ package com.bjvca.videocut
 
 case class AdSeat(
                    video_id: String,
+                   project_id: String,
+                   department_id: String,
                    media_name: String,
                    drama_name: String,
                    drama_type_name: String,

@@ -54,6 +54,8 @@ object AllCleand extends Logging {
             .where("status = 0")
             .createOrReplaceTempView("task")
 
+          spark.sql("cache table task")
+
     // 读取将要用到的表
     // 1.recognition2_behavior
     spark.read.format("jdbc")
@@ -136,13 +138,14 @@ object AllCleand extends Logging {
       .createOrReplaceTempView("recognition2_videostory")
 
 
-
     //    join task
     //      on task.video_id = media_id
     // 1.拿到所有的广告位 aaa
     spark.sql(
       """
         |select recognition2_behavior.media_id video_id,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
         |       kukai_videos.videoName media_name,
         |       recognition2_behavior.time_start ad_seat_b_time,
         |       recognition2_behavior.time_end ad_seat_e_time,
@@ -162,6 +165,8 @@ object AllCleand extends Logging {
         |on task.video_id = media_id
         |union all
         |select recognition2_face.media_id video_id,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
         |       kukai_videos.videoName media_name,
         |       recognition2_face.time_start ad_seat_b_time,
         |       recognition2_face.time_end ad_seat_e_time,
@@ -181,6 +186,8 @@ object AllCleand extends Logging {
         |on task.video_id = media_id
         |union all
         |select recognition2_object.media_id video_id,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
         |       kukai_videos.videoName media_name,
         |       recognition2_object.time_start ad_seat_b_time,
         |       recognition2_object.time_end ad_seat_e_time,
@@ -200,6 +207,8 @@ object AllCleand extends Logging {
         |on task.video_id = media_id
         |union all
         |select recognition2_scene.media_id video_id,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
         |       kukai_videos.videoName media_name,
         |       recognition2_scene.time_start ad_seat_b_time,
         |       recognition2_scene.time_end ad_seat_e_time,
@@ -226,6 +235,8 @@ object AllCleand extends Logging {
       """
         |select
         |aaa.video_id,
+        |aaa.project_id,
+        |aaa.department_id,
         |aaa.media_name,
         |aaa.drama_name,
         |aaa.drama_type_name,
@@ -433,6 +444,8 @@ object AllCleand extends Logging {
               val file8 = thisObj.get("class3_name").asInstanceOf[String]
               val file9 = thisObj.get("class2_name").asInstanceOf[String]
               val file10 = thisObj.get("ad_seat_img").asInstanceOf[String]
+              val file11 = thisObj.get("project_id").asInstanceOf[String]
+              val file12 = thisObj.get("department_id").asInstanceOf[Int]
 
               //            将组合后的标签，前后各拓展3s
               val newbegin =
@@ -450,6 +463,8 @@ object AllCleand extends Logging {
               tempJsonObj.put("string_time", newbegin + "_" + newend)
               tempJsonObj.put("string_time_long", newend.toLong - newbegin.toLong)
               tempJsonObj.put("resourceId", "1")
+              tempJsonObj.put("project_id", file11)
+              tempJsonObj.put("department_id", file12)
 
               class3List.add(file8)
               class2List.add(file9)
@@ -540,6 +555,7 @@ object AllCleand extends Logging {
       "es.port" -> "9200"
       //                "es.mapping.id" -> ""
     ))
+          logWarning("单标签存入ES成功")
 
 
           rst1.groupBy(str => {
@@ -561,6 +577,7 @@ object AllCleand extends Logging {
             }
 
           })
+          logWarning("更新task表片段1数量成功")
 
     // 统计生成的视频片段数
 //    var fragment = 0
@@ -589,9 +606,19 @@ object AllCleand extends Logging {
      */
     val rst = spark.sql("select * from ccc")
       .rdd
-      .map(x => AdSeat(x.get(0).toString, x.get(1).toString, x.get(2).toString, x.get(3).toString, x.get(4).toString,
-        x.get(5).toString, x.get(6).toString, x.get(7).toString, x.get(8).toString, x.get(9).toString,
-        x.get(10).toString))
+      .map(x => AdSeat(x.get(0).toString,
+        x.get(1).toString,
+        x.get(2).toString,
+        x.get(3).toString,
+        x.get(4).toString,
+        x.get(5).toString,
+        x.get(6).toString,
+        x.get(7).toString,
+        x.get(8).toString,
+        x.get(9).toString,
+        x.get(10).toString,
+        x.get(11).toString,
+        x.get(12).toString))
 
       .map(x => {
         val videoID = x.video_id
@@ -683,6 +710,8 @@ object AllCleand extends Logging {
       "es.port" -> "9200"
     ))
 
+          logWarning("多标签存入ES成功")
+
           rst.groupBy(str => {
             JSON.parseObject(str).getString("string_vid")
           }).foreach(x => {
@@ -702,6 +731,8 @@ object AllCleand extends Logging {
             }
 
           })
+
+          logWarning("更新task表片段2数量成功")
 
     // 统计生成的视频片段数
 //    rst.mapPartitionsWithIndex {
@@ -725,7 +756,6 @@ object AllCleand extends Logging {
 
 
 
-
     /**
      * 分镜头处理
      */
@@ -735,6 +765,8 @@ object AllCleand extends Logging {
       """
         |select video_id,
         |             media_name,
+        |             project_id,
+        |             department_id,
         |             ad_seat_b_time,
         |             ad_seat_e_time,
         |             drama_name,
@@ -758,7 +790,9 @@ object AllCleand extends Logging {
         |                   recognition2_class.class2_name   class3_name,
         |                   recognition2_behavior.object_img ad_seat_img,
         |                   story_start,
-        |                   story_end
+        |                   story_end,
+        |                   kukai_videos.albumId project_id,
+        |                   kukai_videos.department_id department_id
         |            from recognition2_behavior
         |                     join recognition2_class
         |                          on recognition2_behavior.class_id = recognition2_class.class_id
@@ -766,8 +800,6 @@ object AllCleand extends Logging {
         |                          on kukai_videos.videoId = recognition2_behavior.media_id
         |                     join recognition2_videostory
         |                          on recognition2_behavior.media_id = recognition2_videostory.media_id
-        |                          join task
-        |                           on task.video_id = recognition2_behavior.media_id
         |            union all
         |            select recognition2_face.media_id     video_id,
         |                   kukai_videos.videoName         media_name,
@@ -781,7 +813,9 @@ object AllCleand extends Logging {
         |                   recognition2_class.class2_name class3_name,
         |                   recognition2_face.object_img   ad_seat_img,
         |                   story_start,
-        |                   story_end
+        |                   story_end,
+        |                   kukai_videos.albumId project_id,
+        |                   kukai_videos.department_id department_id
         |            from recognition2_face
         |                     join recognition2_class
         |                          on recognition2_face.class_id = recognition2_class.class_id
@@ -789,8 +823,6 @@ object AllCleand extends Logging {
         |                          on kukai_videos.videoId = recognition2_face.media_id
         |                     join recognition2_videostory
         |                          on recognition2_face.media_id = recognition2_videostory.media_id
-        |                          join task
-        |on task.video_id = recognition2_face.media_id
         |            union all
         |            select recognition2_object.media_id   video_id,
         |                   kukai_videos.videoName         media_name,
@@ -804,7 +836,9 @@ object AllCleand extends Logging {
         |                   recognition2_class.class2_name class3_name,
         |                   recognition2_object.object_img ad_seat_img,
         |                   story_start,
-        |                   story_end
+        |                   story_end,
+        |                   kukai_videos.albumId project_id,
+        |                   kukai_videos.department_id department_id
         |            from recognition2_object
         |                     join recognition2_class
         |                          on recognition2_object.class_id = recognition2_class.class_id
@@ -812,8 +846,6 @@ object AllCleand extends Logging {
         |                          on kukai_videos.videoId = recognition2_object.media_id
         |                     join recognition2_videostory
         |                          on recognition2_object.media_id = recognition2_videostory.media_id
-        |                          join task
-        |on task.video_id = recognition2_object.media_id
         |            union all
         |            select recognition2_scene.media_id    video_id,
         |                   kukai_videos.videoName         media_name,
@@ -827,7 +859,9 @@ object AllCleand extends Logging {
         |                   recognition2_class.class2_name class3_name,
         |                   recognition2_scene.object_img  ad_seat_img,
         |                   story_start,
-        |                   story_end
+        |                   story_end,
+        |                   kukai_videos.albumId project_id,
+        |                   kukai_videos.department_id department_id
         |            from recognition2_scene
         |                     join recognition2_class
         |                          on recognition2_scene.class_id = recognition2_class.class_id
@@ -835,23 +869,30 @@ object AllCleand extends Logging {
         |                          on kukai_videos.videoId = recognition2_scene.media_id
         |                     join recognition2_videostory
         |                          on recognition2_scene.media_id = recognition2_videostory.media_id
-        |                          join task
-        |on task.video_id = recognition2_scene.media_id
         |           ) b
         |""".stripMargin)
+
       .createOrReplaceTempView("a0")
 
-
+           spark.sql(
+             """
+               |select a0.*
+               | from a0 join task
+               | on a0.video_id=task.video_id
+               |""".stripMargin)
+               .createOrReplaceTempView("a01")
 
     // 分组求和
     spark.sql(
       """
-        |select video_id, media_name, drama_name, drama_type_name, media_area_name, class2_name, class_type_id, first(ad_seat_img) ad_seat_img, first(ad_seat_b_time) ad_seat_b_time, first(ad_seat_e_time) ad_seat_e_time, story_start, story_end, sum(ad_seat_e_time - ad_seat_b_time) totaltime,
-        |       concat_ws('',concat_ws(',',collect_set(class_type_id)),concat_ws(',',collect_set(class3_name))) as class3_name
-        |from a0
+        |select a01.video_id, media_name, drama_name, drama_type_name, media_area_name, class2_name, class_type_id, first(ad_seat_img) ad_seat_img, first(ad_seat_b_time) ad_seat_b_time, first(ad_seat_e_time) ad_seat_e_time, story_start, story_end, sum(ad_seat_e_time - ad_seat_b_time) totaltime,
+        |       concat_ws('',concat_ws(',',collect_set(class_type_id)),concat_ws(',',collect_set(class3_name))) as class3_name,
+        |       first(project_id) project_id,
+        |       first(department_id) department_id
+        |from a01
         |where ad_seat_b_time > story_start
         |  and ad_seat_e_time < story_end
-        |group by video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end
+        |group by a01.video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end
         |""".stripMargin)
       .createOrReplaceTempView("a1")
 
@@ -877,6 +918,8 @@ object AllCleand extends Logging {
                     |SELECT drama_name string_drama_name,
                     |       drama_type_name string_drama_type_name,
                     |       concat_ws('_',story_start,story_end) string_time,
+                    |       first(project_id) project_id,
+                    |       first(department_id) department_id,
                     |       video_id string_vid,
                     |       media_area_name string_media_area_name,
                     |       story_end - story_start string_time_long,
@@ -898,6 +941,8 @@ object AllCleand extends Logging {
                     val string_drama_name = oldObject.getString("string_drama_name")
                     val string_drama_type_name = oldObject.getString("string_drama_type_name")
                     val string_time = oldObject.getString("string_time")
+                    val project_id = oldObject.getString("project_id")
+                    val department_id = oldObject.getString("department_id")
                     val string_vid = oldObject.getString("string_vid")
                     val string_media_area_name = oldObject.getString("string_media_area_name")
                     val string_time_long = oldObject.getInteger("string_time_long")
@@ -950,6 +995,8 @@ object AllCleand extends Logging {
 
                     newObject.put("string_vid", string_vid)
                     newObject.put("media_name", media_name)
+                    newObject.put("project_id", project_id)
+                    newObject.put("department_id", department_id)
                     newObject.put("string_drama_name", string_drama_name)
                     newObject.put("string_drama_type_name", string_drama_type_name)
                     newObject.put("string_media_area_name", string_media_area_name)
@@ -978,6 +1025,7 @@ object AllCleand extends Logging {
         "es.password" -> confUtil.adxStreamingEsPassword,
         "es.port" -> "9200"
       ))
+          logWarning("分镜头存入ES成功")
 
 
           rst2.groupBy(str => {
@@ -999,6 +1047,7 @@ object AllCleand extends Logging {
             }
 
           })
+          logWarning("更新task表分镜头数量成功")
 
 
 
@@ -1052,7 +1101,6 @@ object AllCleand extends Logging {
 //                    sqlProxy.shutdown(client)
 //                  }
 //                })
-
           spark.sql(
             """
               |select *
@@ -1077,7 +1125,8 @@ object AllCleand extends Logging {
                 }
               })
 
-
+          logWarning("更新task表剩余status成功")
+//**/
 
           Thread.sleep(5000)
 
