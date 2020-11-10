@@ -1,10 +1,8 @@
 package com.bjvca.videocut
 
-
 import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
 import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy}
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.elasticsearch.spark._
 
@@ -16,7 +14,7 @@ import scala.util.Random
  * （基于Cleaned_union2）
  * 分镜头 + 标签合成
  */
-object AllCleand extends Logging {
+object AllCleand1 extends Logging {
 
   def main(args: Array[String]): Unit = {
 
@@ -254,6 +252,7 @@ object AllCleand extends Logging {
 
     spark.sql("cache table ccc")
 
+
     /**
      * 单标签合成
      */
@@ -460,7 +459,7 @@ object AllCleand extends Logging {
               tempJsonObj.put("string_drama_type_name", file4)
               tempJsonObj.put("string_media_area_name", file5)
               //              tempJsonObj.put("string_media_release_date", file6)
-              tempJsonObj.put("b_t",newbegin)
+              tempJsonObj.put("b_t", newbegin)
               tempJsonObj.put("string_time", newbegin + "_" + newend)
               tempJsonObj.put("string_time_long", newend.toLong - newbegin.toLong)
               tempJsonObj.put("resourceId", "1")
@@ -756,7 +755,6 @@ object AllCleand extends Logging {
 //    )
 
 
-
     /**
      * 分镜头处理
      */
@@ -799,7 +797,7 @@ object AllCleand extends Logging {
         |                          on recognition2_behavior.class_id = recognition2_class.class_id
         |                     join kukai_videos
         |                          on kukai_videos.videoId = recognition2_behavior.media_id
-        |                     join recognition2_videostory
+        |                     right join recognition2_videostory
         |                          on recognition2_behavior.media_id = recognition2_videostory.media_id
         |            union all
         |            select recognition2_face.media_id     video_id,
@@ -822,7 +820,7 @@ object AllCleand extends Logging {
         |                          on recognition2_face.class_id = recognition2_class.class_id
         |                     join kukai_videos
         |                          on kukai_videos.videoId = recognition2_face.media_id
-        |                     join recognition2_videostory
+        |                     right join recognition2_videostory
         |                          on recognition2_face.media_id = recognition2_videostory.media_id
         |            union all
         |            select recognition2_object.media_id   video_id,
@@ -845,7 +843,7 @@ object AllCleand extends Logging {
         |                          on recognition2_object.class_id = recognition2_class.class_id
         |                     join kukai_videos
         |                          on kukai_videos.videoId = recognition2_object.media_id
-        |                     join recognition2_videostory
+        |                     right join recognition2_videostory
         |                          on recognition2_object.media_id = recognition2_videostory.media_id
         |            union all
         |            select recognition2_scene.media_id    video_id,
@@ -868,11 +866,12 @@ object AllCleand extends Logging {
         |                          on recognition2_scene.class_id = recognition2_class.class_id
         |                     join kukai_videos
         |                          on kukai_videos.videoId = recognition2_scene.media_id
-        |                     join recognition2_videostory
+        |                     right join recognition2_videostory
         |                          on recognition2_scene.media_id = recognition2_videostory.media_id
         |           ) b
+        |           where ad_seat_b_time >= story_start
+        |              and ad_seat_e_time <= story_end
         |""".stripMargin)
-
       .createOrReplaceTempView("a0")
 
            spark.sql(
@@ -891,8 +890,6 @@ object AllCleand extends Logging {
         |       first(project_id) project_id,
         |       first(department_id) department_id
         |from a01
-        |where ad_seat_b_time > story_start
-        |  and ad_seat_e_time < story_end
         |group by a01.video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end
         |""".stripMargin)
       .createOrReplaceTempView("a1")
@@ -913,8 +910,8 @@ object AllCleand extends Logging {
       .createOrReplaceTempView("a3")
 
 
-          // 合并标签
-                val rst2 = spark.sql(
+          // useful
+                spark.sql(
                   """
                     |SELECT drama_name string_drama_name,
                     |       drama_type_name string_drama_type_name,
@@ -932,6 +929,140 @@ object AllCleand extends Logging {
                     |FROM a3
                     |GROUP BY drama_name,drama_type_name,video_id,media_area_name,story_start,story_end,media_name
                     |""".stripMargin)
+                  .createOrReplaceTempView("a4")
+
+          spark.sql(
+            """
+              |select string_vid,SUBSTRING_INDEX(string_time,'_',1) bt
+              |from a4
+              |""".stripMargin)
+              .createOrReplaceTempView("a")
+
+          spark.sql(
+            """
+              |select media_id,story_start
+              |from recognition2_videostory
+              |join task
+              |on media_id=video_id
+              |""".stripMargin)
+              .createOrReplaceTempView("b")
+
+
+                  spark.sql(
+                    """
+                      |select media_id,story_start
+                      |from b
+                      |left join a
+                      |on bt=story_start
+                      |where bt is null
+                      |""".stripMargin)
+          .createOrReplaceTempView("useless")
+
+          spark.sql(
+          """
+            |select kukai_videos.category  string_drama_name,
+            |       kukai_videos.classify   string_drama_type_name,
+            |       concat_ws('_',recognition2_videostory.story_start,recognition2_videostory.story_end)  string_time,
+            |       recognition2_videostory.media_id  string_vid,
+            |       kukai_videos.area string_media_area_name,
+            |       recognition2_videostory.story_end-recognition2_videostory.story_start string_time_long,
+            |       kukai_videos.videoName  media_name,
+            |       kukai_videos.albumId  project_id,
+            |       kukai_videos.department_id  department_id
+            |from useless
+            |left join recognition2_videostory
+            |on useless.media_id=recognition2_videostory.media_id
+            |and useless.story_start=recognition2_videostory.story_start
+            |left join kukai_videos
+            |on useless.media_id=kukai_videos.videoId
+            |""".stripMargin)
+            .createOrReplaceTempView("ulstory")
+
+
+          val rst3 = spark.sql(
+            """
+              |select *
+              |from ulstory
+              |""".stripMargin)
+            .toJSON
+            .rdd
+            .map(x => {
+              val newObject = new JSONObject()
+
+              val oldObject = JSON.parseObject(x)
+
+              val string_drama_name = oldObject.getString("string_drama_name")
+              val string_drama_type_name = oldObject.getString("string_drama_type_name")
+              val string_time = oldObject.getString("string_time")
+              val project_id = oldObject.getString("project_id")
+              val department_id = oldObject.getString("department_id")
+              val string_vid = oldObject.getString("string_vid")
+              val string_media_area_name = oldObject.getString("string_media_area_name")
+              val string_time_long = oldObject.getInteger("string_time_long")
+              val media_name = oldObject.getString("media_name")
+
+              newObject.put("string_vid", string_vid)
+              newObject.put("media_name", media_name)
+              newObject.put("project_id", project_id)
+              newObject.put("department_id", department_id)
+              newObject.put("string_drama_name", string_drama_name)
+              newObject.put("string_drama_type_name", string_drama_type_name)
+              newObject.put("string_media_area_name", string_media_area_name)
+              newObject.put("b_t", string_time.split('_').head)
+              newObject.put("string_time", string_time)
+              newObject.put("string_time_long", string_time_long)
+              newObject.put("string_class3_list", new JSONArray())
+              newObject.put("string_man_list", new JSONArray())
+              newObject.put("string_object_list", new JSONArray())
+              newObject.put("string_action_list", new JSONArray())
+              newObject.put("string_sence_list", new JSONArray())
+              newObject.put("string_class2_list", new JSONArray())
+              newObject.put("string_class_img_list", new JSONArray())
+
+
+              newObject.put("resourceId", "2")
+
+              newObject.toString
+            })
+
+          rst3.saveJsonToEs("video_wave/doc", Map(
+            //            "es.index.auto.create" -> "true",
+            "es.nodes" -> confUtil.adxStreamingEsHost,
+            "es.user" -> confUtil.adxStreamingEsUser,
+            "es.password" -> confUtil.adxStreamingEsPassword,
+            "es.port" -> "9200"
+          ))
+          logWarning("空标签分镜头存入ES成功")
+
+
+          rst3.groupBy(str => {
+            JSON.parseObject(str).getString("string_vid")
+          }).foreach(x => {
+            val vid = x._1
+            val storyNum = x._2.toList.size
+
+            val sqlProxy = new SqlProxy()
+            val client = DataSourceUtil.getConnection
+            try {
+              sqlProxy.executeUpdate(client, "update `task` set story=?,total=total+?,status=1 where video_id = ?",
+                Array(storyNum,storyNum,vid))
+            }
+            catch {
+              case e: Exception => e.printStackTrace()
+            } finally {
+              sqlProxy.shutdown(client)
+            }
+
+          })
+          logWarning("更新task表分镜头数量成功")
+
+
+
+          val rst2 = spark.sql(
+                      """
+                        |select *
+                        |from a4
+                        |""".stripMargin)
                   .toJSON
                   .rdd
                   .map(x => {
@@ -1039,7 +1170,7 @@ object AllCleand extends Logging {
             val sqlProxy = new SqlProxy()
             val client = DataSourceUtil.getConnection
             try {
-              sqlProxy.executeUpdate(client, "update `task` set story=?,total=total+?,status=1 where video_id = ?",
+              sqlProxy.executeUpdate(client, "update `task` set story=story+?,total=total+?,status=1 where video_id = ?",
                 Array(storyNum,storyNum,vid))
             }
             catch {
@@ -1128,7 +1259,6 @@ object AllCleand extends Logging {
               })
 
           logWarning("更新task表剩余status成功")
-//**/
 
           Thread.sleep(5000)
 

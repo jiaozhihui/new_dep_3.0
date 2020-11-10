@@ -101,6 +101,7 @@ object CuterUtils3 {
 //    temp.put("string_sence_img_list", senceImgList)
 
     temp.put("string_time", minBTime + "_" + maxETime)
+    temp.put("b_t", minBTime)
     temp.put("string_time_long", maxETime.toLong - minBTime.toLong)
 
     temp.put("resourceId", "1")
