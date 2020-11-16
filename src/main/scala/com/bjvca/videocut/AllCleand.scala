@@ -460,7 +460,7 @@ object AllCleand extends Logging {
               tempJsonObj.put("string_drama_type_name", file4)
               tempJsonObj.put("string_media_area_name", file5)
               //              tempJsonObj.put("string_media_release_date", file6)
-              tempJsonObj.put("b_t",newbegin)
+              tempJsonObj.put("b_t",newbegin.toLong)
               tempJsonObj.put("string_time", newbegin + "_" + newend)
               tempJsonObj.put("string_time_long", newend.toLong - newbegin.toLong)
               tempJsonObj.put("resourceId", "1")
@@ -607,7 +607,8 @@ object AllCleand extends Logging {
      */
     val rst = spark.sql("select * from ccc")
       .rdd
-      .map(x => AdSeat(x.get(0).toString,
+      .map(x => AdSeat(
+        x.get(0).toString,
         x.get(1).toString,
         x.get(2).toString,
         x.get(3).toString,
@@ -1002,7 +1003,7 @@ object AllCleand extends Logging {
                     newObject.put("string_drama_type_name", string_drama_type_name)
                     newObject.put("string_media_area_name", string_media_area_name)
                     newObject.put("string_time", string_time)
-                    newObject.put("b_t", string_time.split('_').head)
+                    newObject.put("b_t", string_time.split('_').head.toLong)
                     newObject.put("string_time_long", string_time_long)
                     newObject.put("string_class3_list", string_class3_list)
                     newObject.put("string_man_list", manList)

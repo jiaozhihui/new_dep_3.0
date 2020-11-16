@@ -459,7 +459,7 @@ object AllCleand1 extends Logging {
               tempJsonObj.put("string_drama_type_name", file4)
               tempJsonObj.put("string_media_area_name", file5)
               //              tempJsonObj.put("string_media_release_date", file6)
-              tempJsonObj.put("b_t", newbegin)
+              tempJsonObj.put("b_t", newbegin.toLong)
               tempJsonObj.put("string_time", newbegin + "_" + newend)
               tempJsonObj.put("string_time_long", newend.toLong - newbegin.toLong)
               tempJsonObj.put("resourceId", "1")
@@ -606,7 +606,8 @@ object AllCleand1 extends Logging {
      */
     val rst = spark.sql("select * from ccc")
       .rdd
-      .map(x => AdSeat(x.get(0).toString,
+      .map(x => AdSeat(
+        x.get(0).toString,
         x.get(1).toString,
         x.get(2).toString,
         x.get(3).toString,
@@ -699,6 +700,18 @@ object AllCleand1 extends Logging {
         resultList
       })
       .flatMap(x => x._2)
+//      .map(x =>{
+//        val list = x.toList
+//        val resultList = ListBuffer[AdSeat]()
+//        val head = x.toList.head.class3_name
+//        val c3list = List(head)
+//        for (i <- 1 until list.size) {
+//          if (c3list.contains(list(i).class3_name)){
+//            c3list.addString(list(i).class3_name)
+//          }
+//        }
+//        resultList
+//      })
       .map(x => CuterUtils3.seatToJSON(x))
       .filter(x => x.getInteger("string_time_long") >= 1000)
       .map(_.toString)
@@ -968,7 +981,8 @@ object AllCleand1 extends Logging {
             |       recognition2_videostory.story_end-recognition2_videostory.story_start string_time_long,
             |       kukai_videos.videoName  media_name,
             |       kukai_videos.albumId  project_id,
-            |       kukai_videos.department_id  department_id
+            |       kukai_videos.department_id  department_id,
+            |       recognition2_videostory.image image
             |from useless
             |left join recognition2_videostory
             |on useless.media_id=recognition2_videostory.media_id
@@ -1000,6 +1014,10 @@ object AllCleand1 extends Logging {
               val string_media_area_name = oldObject.getString("string_media_area_name")
               val string_time_long = oldObject.getInteger("string_time_long")
               val media_name = oldObject.getString("media_name")
+              val image = oldObject.getString("image")
+
+              val imglist = new JSONArray()
+              imglist.add(image)
 
               newObject.put("string_vid", string_vid)
               newObject.put("media_name", media_name)
@@ -1008,7 +1026,7 @@ object AllCleand1 extends Logging {
               newObject.put("string_drama_name", string_drama_name)
               newObject.put("string_drama_type_name", string_drama_type_name)
               newObject.put("string_media_area_name", string_media_area_name)
-              newObject.put("b_t", string_time.split('_').head)
+              newObject.put("b_t", string_time.split('_').head.toLong)
               newObject.put("string_time", string_time)
               newObject.put("string_time_long", string_time_long)
               newObject.put("string_class3_list", new JSONArray())
@@ -1017,7 +1035,7 @@ object AllCleand1 extends Logging {
               newObject.put("string_action_list", new JSONArray())
               newObject.put("string_sence_list", new JSONArray())
               newObject.put("string_class2_list", new JSONArray())
-              newObject.put("string_class_img_list", new JSONArray())
+              newObject.put("string_class_img_list", imglist)
 
 
               newObject.put("resourceId", "2")
@@ -1133,7 +1151,7 @@ object AllCleand1 extends Logging {
                     newObject.put("string_drama_type_name", string_drama_type_name)
                     newObject.put("string_media_area_name", string_media_area_name)
                     newObject.put("string_time", string_time)
-                    newObject.put("b_t", string_time.split('_').head)
+                    newObject.put("b_t", string_time.split('_').head.toLong)
                     newObject.put("string_time_long", string_time_long)
                     newObject.put("string_class3_list", string_class3_list)
                     newObject.put("string_man_list", manList)

@@ -1,6 +1,6 @@
 package com.bjvca.videocut
 
-import com.alibaba.fastjson.{JSONArray, JSONObject}
+import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
 
 import scala.collection.mutable.ListBuffer
 
@@ -49,6 +49,8 @@ object CuterUtils3 {
       val file8 = seat.class3_name
       val file9 = seat.class2_name
       val file10 = seat.ad_seat_img
+      val file11 = seat.department_id
+      val file12 = seat.project_id
 
       temp.put("string_vid", file1)
       temp.put("media_name", file2)
@@ -56,10 +58,19 @@ object CuterUtils3 {
       temp.put("string_drama_type_name", file4)
       temp.put("string_media_area_name", file5)
       //      temp.put("string_media_release_date", file6)
+      temp.put("department_id", file11)
+      temp.put("project_id", file12)
 
-      class3List.add(file8)
-      class2List.add(file9)
-      classImgList.add(file10)
+      if (!class3List.contains(file8)){
+        class3List.add(file8)
+      }
+
+      if (!class2List.contains(file9)){
+        class2List.add(file9)
+      }
+      if (!classImgList.contains(file10)){
+        classImgList.add(file10)
+      }
 
       file7 match {
         case "4" =>
@@ -82,6 +93,7 @@ object CuterUtils3 {
 
     }
 
+
     temp.put("string_class3_list", class3List)
     temp.put("string_man_list", manList)
     temp.put("string_object_list", objectList)
@@ -101,7 +113,7 @@ object CuterUtils3 {
 //    temp.put("string_sence_img_list", senceImgList)
 
     temp.put("string_time", minBTime + "_" + maxETime)
-    temp.put("b_t", minBTime)
+    temp.put("b_t", minBTime.toLong)
     temp.put("string_time_long", maxETime.toLong - minBTime.toLong)
 
     temp.put("resourceId", "1")
