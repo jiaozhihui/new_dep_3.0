@@ -11,8 +11,8 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 /**
- * （基于Cleaned_union2）
- * 分镜头 + 标签合成
+ * （基于AllCleand1）
+ *  + 分镜头权重
  */
 object AllCleand2 extends Logging {
 
@@ -789,7 +789,9 @@ object AllCleand2 extends Logging {
         |             class3_name,
         |             ad_seat_img,
         |             story_start,
-        |             story_end
+        |             story_end,
+        |             duration,
+        |             confidence
         |      from (select recognition2_behavior.media_id   video_id,
         |                   kukai_videos.videoName           media_name,
         |                   recognition2_behavior.time_start ad_seat_b_time,
@@ -804,7 +806,9 @@ object AllCleand2 extends Logging {
         |                   story_start,
         |                   story_end,
         |                   kukai_videos.albumId project_id,
-        |                   kukai_videos.department_id department_id
+        |                   kukai_videos.department_id department_id,
+        |                   kukai_videos.duration duration,
+        |                   recognition2_behavior.score confidence
         |            from recognition2_behavior
         |                     join recognition2_class
         |                          on recognition2_behavior.class_id = recognition2_class.class_id
@@ -827,7 +831,9 @@ object AllCleand2 extends Logging {
         |                   story_start,
         |                   story_end,
         |                   kukai_videos.albumId project_id,
-        |                   kukai_videos.department_id department_id
+        |                   kukai_videos.department_id department_id,
+        |                   kukai_videos.duration duration,
+        |                   recognition2_face.score confidence
         |            from recognition2_face
         |                     join recognition2_class
         |                          on recognition2_face.class_id = recognition2_class.class_id
@@ -850,7 +856,9 @@ object AllCleand2 extends Logging {
         |                   story_start,
         |                   story_end,
         |                   kukai_videos.albumId project_id,
-        |                   kukai_videos.department_id department_id
+        |                   kukai_videos.department_id department_id,
+        |                   kukai_videos.duration duration,
+        |                   recognition2_object.score confidence
         |            from recognition2_object
         |                     join recognition2_class
         |                          on recognition2_object.class_id = recognition2_class.class_id
@@ -873,7 +881,9 @@ object AllCleand2 extends Logging {
         |                   story_start,
         |                   story_end,
         |                   kukai_videos.albumId project_id,
-        |                   kukai_videos.department_id department_id
+        |                   kukai_videos.department_id department_id,
+        |                   kukai_videos.duration duration,
+        |                   recognition2_scene.score confidence
         |            from recognition2_scene
         |                     join recognition2_class
         |                          on recognition2_scene.class_id = recognition2_class.class_id
@@ -901,24 +911,49 @@ object AllCleand2 extends Logging {
         |select a01.video_id, media_name, drama_name, drama_type_name, media_area_name, class2_name, class_type_id, first(ad_seat_img) ad_seat_img, first(ad_seat_b_time) ad_seat_b_time, first(ad_seat_e_time) ad_seat_e_time, story_start, story_end, sum(ad_seat_e_time - ad_seat_b_time) totaltime,
         |       concat_ws('',concat_ws(',',collect_set(class_type_id)),concat_ws(',',collect_set(class3_name))) as class3_name,
         |       first(project_id) project_id,
-        |       first(department_id) department_id
+        |       first(department_id) department_id,
+        |       first(duration) duration,
+        |       first(confidence) confidence
         |from a01
         |group by a01.video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end
         |""".stripMargin)
       .createOrReplaceTempView("a1")
 
+          // 加权重
+          spark.sql(
+            s"""
+              |select *,${confUtil.a}*totaltime/(story_end-story_start)+${confUtil.b}*totaltime/duration+${confUtil.c}*confidence score
+              |from a1
+              |""".stripMargin)
+              .createOrReplaceTempView("a11")
+
+
     // 组内排序
     spark.sql(
       """
-        |select *, row_number() OVER (PARTITION BY story_start, story_end ORDER BY totaltime DESC) rank
-        |from a1
+        |select *, row_number() OVER (PARTITION BY story_start, story_end, class_type_id ORDER BY score) rank
+        |from a11
         |""".stripMargin)
       .createOrReplaceTempView("a2")
 
     // 取组内TOP10
     spark.sql(
       """
-        |select * from a2 where rank <= 10
+        |select *
+        |from a2
+        |where class_type_id = 1 and rank <= 3
+        |union all
+        |select *
+        |from a2
+        |where class_type_id = 2 and rank <= 3
+        |union all
+        |select *
+        |from a2
+        |where class_type_id = 3 and rank <= 2
+        |union all
+        |select *
+        |from a2
+        |where class_type_id = 4 and rank <= 2
         |""".stripMargin)
       .createOrReplaceTempView("a3")
 

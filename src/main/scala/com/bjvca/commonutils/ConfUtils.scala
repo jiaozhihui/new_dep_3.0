@@ -45,4 +45,8 @@ class ConfUtils(confFile:String) extends Serializable {
 
   var nowTime = "0"
 
+  // 权重
+  val a: Int = load.getInt("a")
+  val b: Int = load.getInt("b")
+  val c: Int = load.getInt("c")
 }
