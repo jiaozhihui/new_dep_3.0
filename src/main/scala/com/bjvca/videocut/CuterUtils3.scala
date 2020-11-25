@@ -51,6 +51,8 @@ object CuterUtils3 {
       val file10 = seat.ad_seat_img
       val file11 = seat.department_id
       val file12 = seat.project_id
+      val file13 = seat.resolution
+      val file14 = seat.frame
 
       temp.put("string_vid", file1)
       temp.put("media_name", file2)
@@ -60,6 +62,8 @@ object CuterUtils3 {
       //      temp.put("string_media_release_date", file6)
       temp.put("department_id", file11)
       temp.put("project_id", file12)
+      temp.put("resolution", file13)
+      temp.put("frame", file14)
 
       if (!class3List.contains(file8)){
         class3List.add(file8)

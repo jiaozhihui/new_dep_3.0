@@ -13,7 +13,9 @@ case class AdSeat(
                    class3_name: String,
                    ad_seat_b_time: String,
                    ad_seat_e_time: String,
-                   ad_seat_img: String
+                   ad_seat_img: String,
+                   resolution: String,
+                   frame: Int
                  )
 
 /**
@@ -29,6 +31,7 @@ case class AdSeat(
  * ad_seat_b_time: String,      开始时间
  * ad_seat_e_time: String,      结束时间
  * ad_seat_img: String          封面图
- *
+ * resolution: String           分辨率
+ * frame： Int                  帧数
  *
  */

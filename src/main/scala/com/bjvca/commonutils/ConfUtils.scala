@@ -24,6 +24,7 @@ class ConfUtils(confFile:String) extends Serializable {
   val adxStreamingEsHost = load.getString("adx.streaming.es.host")
   val adxStreamingEsUser = load.getString("adx.streaming.es.user")
   val adxStreamingEsPassword = load.getString("adx.streaming.es.password")
+  val adxStreamingEsIndex = load.getString("adx.streaming.es.index")
 
   // mysql
   val adxStreamingMysqlHost = load.getString("adx.streaming.mysql.host")
@@ -42,6 +43,7 @@ class ConfUtils(confFile:String) extends Serializable {
   val videocutMysqlHost = load.getString("videocut.mysql.host")
   val videocutMysqlUser = load.getString("videocut.mysql.user")
   val videocutMysqlPassword = load.getString("videocut.mysql.password")
+  val videocutMysqlDb = load.getString("videocut.mysql.db")
 
   var nowTime = "0"
 

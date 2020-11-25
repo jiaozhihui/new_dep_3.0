@@ -3,7 +3,7 @@ package com.bjvca.videocut
 import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
 import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.elasticsearch.spark._
 
 import scala.collection.mutable
@@ -11,10 +11,10 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 /**
- * （基于Cleaned_union2）
- * 分镜头 + 标签合成
+ * （基于AllCleand1）
+ *  + 分镜头权重
  */
-object AllCleand1 extends Logging {
+object AllCleand3 extends Logging {
 
   def main(args: Array[String]): Unit = {
 
@@ -244,7 +244,10 @@ object AllCleand1 extends Logging {
         |aaa.class3_name,
         |aaa.ad_seat_b_time,
         |aaa.ad_seat_e_time,
-        |aaa.ad_seat_img
+        |aaa.ad_seat_img,
+        |kukai_videos.videoWidth Width,
+        |kukai_videos.videoHeight Height,
+        |kukai_videos.frame frame
         |from aaa join kukai_videos
         |on aaa.video_id=kukai_videos.videoId
         |""".stripMargin)
@@ -445,6 +448,8 @@ object AllCleand1 extends Logging {
               val file10 = thisObj.get("ad_seat_img").asInstanceOf[String]
               val file11 = thisObj.get("project_id").asInstanceOf[String]
               val file12 = thisObj.get("department_id").asInstanceOf[Int]
+              val file13 = thisObj.get("Width").asInstanceOf[String] + "*" + thisObj.get("Height").asInstanceOf[String]
+              val file14 = thisObj.get("frame").asInstanceOf[Int]
 
               //            将组合后的标签，前后各拓展3s
               val newbegin =
@@ -465,6 +470,8 @@ object AllCleand1 extends Logging {
               tempJsonObj.put("resourceId", "1")
               tempJsonObj.put("project_id", file11)
               tempJsonObj.put("department_id", file12)
+              tempJsonObj.put("resolution", file13)
+              tempJsonObj.put("frame", file14)
 
               class3List.add(file8)
               class2List.add(file9)
@@ -680,7 +687,7 @@ object AllCleand1 extends Logging {
 
         var maxETime: String = seatSorted.head.ad_seat_e_time
 
-        // 遍历所有point点，进而增加或减少tempMap中的adseat，进而处理处新片段
+        // 遍历所有point点，进而增加或减少tempMap中的adseat，进而处理成新片段
         for (i <- 1 until seatSorted.size) {
           val thisSeat = seatSorted(i)
 
@@ -791,7 +798,11 @@ object AllCleand1 extends Logging {
         |             class3_name,
         |             ad_seat_img,
         |             story_start,
-        |             story_end
+        |             story_end,
+        |             duration,
+        |             confidence,
+        |             CONCAT_WS('*',Width,Height) resolution,
+        |             frame
         |      from (select recognition2_behavior.media_id   video_id,
         |                   kukai_videos.videoName           media_name,
         |                   recognition2_behavior.time_start ad_seat_b_time,
@@ -806,7 +817,12 @@ object AllCleand1 extends Logging {
         |                   story_start,
         |                   story_end,
         |                   kukai_videos.albumId project_id,
-        |                   kukai_videos.department_id department_id
+        |                   kukai_videos.department_id department_id,
+        |                   kukai_videos.duration duration,
+        |                   recognition2_behavior.score confidence,
+        |                   kukai_videos.videoWidth Width,
+        |                   kukai_videos.videoHeight Height,
+        |                   kukai_videos.frame frame
         |            from recognition2_behavior
         |                     join recognition2_class
         |                          on recognition2_behavior.class_id = recognition2_class.class_id
@@ -829,7 +845,12 @@ object AllCleand1 extends Logging {
         |                   story_start,
         |                   story_end,
         |                   kukai_videos.albumId project_id,
-        |                   kukai_videos.department_id department_id
+        |                   kukai_videos.department_id department_id,
+        |                   kukai_videos.duration duration,
+        |                   recognition2_face.score confidence,
+        |                   kukai_videos.videoWidth Width,
+        |                   kukai_videos.videoHeight Height,
+        |                   kukai_videos.frame frame
         |            from recognition2_face
         |                     join recognition2_class
         |                          on recognition2_face.class_id = recognition2_class.class_id
@@ -852,7 +873,12 @@ object AllCleand1 extends Logging {
         |                   story_start,
         |                   story_end,
         |                   kukai_videos.albumId project_id,
-        |                   kukai_videos.department_id department_id
+        |                   kukai_videos.department_id department_id,
+        |                   kukai_videos.duration duration,
+        |                   recognition2_object.score confidence,
+        |                   kukai_videos.videoWidth Width,
+        |                   kukai_videos.videoHeight Height,
+        |                   kukai_videos.frame frame
         |            from recognition2_object
         |                     join recognition2_class
         |                          on recognition2_object.class_id = recognition2_class.class_id
@@ -875,7 +901,12 @@ object AllCleand1 extends Logging {
         |                   story_start,
         |                   story_end,
         |                   kukai_videos.albumId project_id,
-        |                   kukai_videos.department_id department_id
+        |                   kukai_videos.department_id department_id,
+        |                   kukai_videos.duration duration,
+        |                   recognition2_scene.score confidence,
+        |                   kukai_videos.videoWidth Width,
+        |                   kukai_videos.videoHeight Height,
+        |                   kukai_videos.frame frame
         |            from recognition2_scene
         |                     join recognition2_class
         |                          on recognition2_scene.class_id = recognition2_class.class_id
@@ -903,27 +934,53 @@ object AllCleand1 extends Logging {
         |select a01.video_id, media_name, drama_name, drama_type_name, media_area_name, class2_name, class_type_id, first(ad_seat_img) ad_seat_img, first(ad_seat_b_time) ad_seat_b_time, first(ad_seat_e_time) ad_seat_e_time, story_start, story_end, sum(ad_seat_e_time - ad_seat_b_time) totaltime,
         |       concat_ws('',concat_ws(',',collect_set(class_type_id)),concat_ws(',',collect_set(class3_name))) as class3_name,
         |       first(project_id) project_id,
-        |       first(department_id) department_id
+        |       first(department_id) department_id,
+        |       first(duration) duration,
+        |       first(confidence) confidence,
+        |       first(resolution) resolution,
+        |       first(frame) frame
         |from a01
         |group by a01.video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end
         |""".stripMargin)
       .createOrReplaceTempView("a1")
 
+          // 加权重
+          spark.sql(
+            s"""
+              |select *,${confUtil.a}*totaltime/(story_end-story_start)+${confUtil.b}*totaltime/duration+${confUtil.c}*confidence score
+              |from a1
+              |""".stripMargin)
+              .createOrReplaceTempView("a11")
+
+
     // 组内排序
     spark.sql(
       """
-        |select *, row_number() OVER (PARTITION BY story_start, story_end ORDER BY totaltime DESC) rank
-        |from a1
+        |select *, row_number() OVER (PARTITION BY story_start, story_end, class_type_id ORDER BY score) rank
+        |from a11
         |""".stripMargin)
       .createOrReplaceTempView("a2")
 
     // 取组内TOP10
     spark.sql(
       """
-        |select * from a2 where rank <= 10
+        |select *
+        |from a2
+        |where class_type_id = 1 and rank <= 3
+        |union all
+        |select *
+        |from a2
+        |where class_type_id = 2 and rank <= 3
+        |union all
+        |select *
+        |from a2
+        |where class_type_id = 3 and rank <= 2
+        |union all
+        |select *
+        |from a2
+        |where class_type_id = 4 and rank <= 2
         |""".stripMargin)
       .createOrReplaceTempView("a3")
-
 
           // useful
                 spark.sql(
@@ -940,7 +997,9 @@ object AllCleand1 extends Logging {
                     |       concat_ws(',',collect_set(class_type_id)) as class_type_id,
                     |       concat_ws(',',collect_set(class3_name)) as class3_name,
                     |       concat_ws(',',collect_set(ad_seat_img)) as ad_seat_img,
-                    |       concat_ws(',',collect_set(class2_name)) as class2_name
+                    |       concat_ws(',',collect_set(class2_name)) as class2_name,
+                    |       first(resolution) resolution,
+                    |       first(frame) frame
                     |FROM a3
                     |GROUP BY drama_name,drama_type_name,video_id,media_area_name,story_start,story_end,media_name
                     |""".stripMargin)
@@ -1038,6 +1097,8 @@ object AllCleand1 extends Logging {
               newObject.put("string_sence_list", new JSONArray())
               newObject.put("string_class2_list", new JSONArray())
               newObject.put("string_class_img_list", imglist)
+              newObject.put("resolution", "1*1")
+              newObject.put("frame", 1)
 
 
               newObject.put("resourceId", "2")
@@ -1162,6 +1223,8 @@ object AllCleand1 extends Logging {
                     newObject.put("string_sence_list", senceList)
                     newObject.put("string_class2_list", string_class2_list)
                     newObject.put("string_class_img_list", string_class_img_list)
+                    newObject.put("resolution", "1*1")
+                    newObject.put("frame", 1)
 
 
                     newObject.put("resourceId", "2")
