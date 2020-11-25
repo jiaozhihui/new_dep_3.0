@@ -67,7 +67,7 @@ object Editing extends Logging {
         |on clip_task.tpl_id=clip_tpl_class.tpl_id
         |""".stripMargin)
     temp.createOrReplaceTempView("target")
-//      .show()
+    //      .show()
 
     /**
      * +------+--------+----------------+--------+----------+-----+---------+--------+
@@ -80,7 +80,7 @@ object Editing extends Logging {
      * |     2|  label2|[王丽坤, 朱亚文]|      15|  1280*720|   20|      100|       3|
      * |     2|  label3|        [电脑椅]|      15|  1280*720|   20|      100|       3|
      * +------+--------+----------------+--------+----------+-----+---------+--------+
-     * */
+     **/
 
     // 搜索(根据限制条件关联mysql和ES)
     spark.sql(
@@ -110,8 +110,8 @@ object Editing extends Logging {
          |and string_time_long <= timeLong+1000
          |order by label_id
          |""".stripMargin)
-        .createOrReplaceTempView("ranked")
-//        .show(1000,false)
+      .createOrReplaceTempView("ranked")
+    //        .show(1000,false)
     /**
      * +------+--------+------------------------------------+----------------+------------------+----------------+---------------+----------+-----+--------+---------+--------+----+
      * |tpl_id|label_id|string_vid                          |media_name      |string_class3_list|string_time_long|string_time    |resolution|frame|timeLong|totalLong|seat_num|rank|
@@ -146,8 +146,8 @@ object Editing extends Logging {
         |from ranked
         |group by rank
         |""".stripMargin)
-        .createOrReplaceTempView("countRank")
-//        .show(false)
+      .createOrReplaceTempView("countRank")
+    //        .show(false)
     /**
      * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
      * |tpl_id|label_id                |string_vid                                                                                                        |media_name                                            |string_class3_list           |string_time_long     |string_time                                    |resolution                    |frame       |timeLong             |totalLong|count|seat_num|
@@ -166,177 +166,93 @@ object Editing extends Logging {
         |from countRank
         |where count=seat_num
         |""".stripMargin)
-//        .show(false)
+      //        .show(false)
 
-    /**
-     * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
-     * |tpl_id|label_id                |string_vid                                                                                                        |media_name                                            |string_class3_list           |string_time_long     |string_time                                    |resolution                    |frame       |timeLong             |totalLong|count|seat_num|
-     * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
-     * |1     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅]|[21660, 14900, 14940]|[733120_754780, 144880_159780, 2413440_2428380]|[1280*720, 1280*720, 1280*720]|[20, 20, 20]|[21000, 15000, 15000]|100000   |3    |3       |
-     * |2     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅]|[21660, 14900, 14940]|[733120_754780, 144880_159780, 2413440_2428380]|[1280*720, 1280*720, 1280*720]|[20, 20, 20]|[21000, 15000, 15000]|100000   |3    |3       |
-     * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
-     */
+      /**
+       * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
+       * |tpl_id|label_id                |string_vid                                                                                                        |media_name                                            |string_class3_list           |string_time_long     |string_time                                    |resolution                    |frame       |timeLong             |totalLong|count|seat_num|
+       * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
+       * |1     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅]|[21660, 14900, 14940]|[733120_754780, 144880_159780, 2413440_2428380]|[1280*720, 1280*720, 1280*720]|[20, 20, 20]|[21000, 15000, 15000]|100000   |3    |3       |
+       * |2     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅]|[21660, 14900, 14940]|[733120_754780, 144880_159780, 2413440_2428380]|[1280*720, 1280*720, 1280*720]|[20, 20, 20]|[21000, 15000, 15000]|100000   |3    |3       |
+       * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
+       */
 
 
-        .rdd
+      .rdd
       // 包装成json形式
-        .map(x => {
+      .map(x => {
 
-          val tplArray = new JSONArray()
+        val tplArray = new JSONArray()
 
-          val tpl_id = x.get(0).toString
-          val label_id = x.get(1).toString.split(',').toList
-          val string_vid = x.get(2).toString.split(',').toList
-          val media_name = x.get(3).toString.split(',').toList
-          val string_class3_list = x.get(4).toString.split(',').toList
-          val string_time_long = x.get(5).toString.split(',').toList
-          val string_time = x.get(6).toString.split(',').toList
-          val resolution = x.get(7).toString.split(',').toList
-          val frame = x.get(8).toString.split(',').toList
-          val timeLong = x.get(9).toString.split(',').toList
-          val totalLong = x.get(10).toString.toInt
-          val count = x.get(11).toString.toInt
-          val seat_num = x.get(12).toString.toInt
+        val tpl_id = x.get(0).toString
+        val label_id = x.get(1).toString.split(',').toList
+        val string_vid = x.get(2).toString.split(',').toList
+        val media_name = x.get(3).toString.split(',').toList
+        val string_class3_list = x.get(4).toString.split(',').toList
+        val string_time_long = x.get(5).toString.split(',').toList
+        val string_time = x.get(6).toString.split(',').toList
+        val resolution = x.get(7).toString.split(',').toList
+        val frame = x.get(8).toString.split(',').toList
+        val timeLong = x.get(9).toString.split(',').toList
+        val totalLong = x.get(10).toString.toInt
+        val count = x.get(11).toString.toInt
+        val seat_num = x.get(12).toString.toInt
 
 
-          for (i <- 0 until seat_num) {
+        for (i <- 0 until seat_num) {
 
-            val tplObject = new JSONObject()
+          val tplObject = new JSONObject()
 
-            tplObject.put("tpl_id",tpl_id)
-            tplObject.put("label_id",label_id(i))
-            tplObject.put("string_vid",string_vid(i))
-            tplObject.put("media_name",media_name(i))
-            tplObject.put("string_class3_list",string_class3_list(i))
-            tplObject.put("string_time_long",string_time_long(i))
-            tplObject.put("string_time",string_time(i))
-            tplObject.put("resolution",resolution(i))
-            tplObject.put("frame",frame(i))
-            tplObject.put("timeLong",timeLong(i))
-            tplObject.put("totalLong",totalLong)
-            tplObject.put("count",count)
+          tplObject.put("tpl_id", tpl_id)
+          tplObject.put("label_id", label_id(i))
+          tplObject.put("string_vid", string_vid(i))
+          tplObject.put("media_name", media_name(i))
+          tplObject.put("string_class3_list", string_class3_list(i))
+          tplObject.put("string_time_long", string_time_long(i))
+          tplObject.put("string_time", string_time(i))
+          tplObject.put("resolution", resolution(i))
+          tplObject.put("frame", frame(i))
+          tplObject.put("timeLong", timeLong(i))
+          tplObject.put("totalLong", totalLong)
+          tplObject.put("count", count)
 
-            tplArray.add(tplObject)
+          tplArray.add(tplObject)
 
-          }
-          val resultJson = tplArray.toString.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")
-          resultJson
-        })
-//      .collect().foreach(println)
-    /**
-     * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤,朱亚文","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2535920_2551580","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":" 15660","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
-     * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤,朱亚文","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2535920_2551580","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":" 15660","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
-     */
+        }
+        val resultJson = tplArray.toString.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")
+        resultJson
+      })
+      //      .collect().foreach(println)
+      /**
+       * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤,朱亚文","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2535920_2551580","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":" 15660","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
+       * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤,朱亚文","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2535920_2551580","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":" 15660","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
+       */
 
       // 将结果保存,更新mysql表数据
       .groupBy(str => {
         val i = str.indexOf("tpl_id")
         val tpl_id = str.substring(i + 9, i + 10)
         tpl_id
-//        JSON.parseObject(str).getString("tpl_id")
+        //        JSON.parseObject(str).getString("tpl_id")
       })
       .foreach(x => {
-      val tpl_id = x._1
-      val num = x._2.toList.size
-      val rst = x._2.toList.toString.replaceAll("List","").replace("(", "").replace(")", "")
+        val tpl_id = x._1
+        val num = x._2.toList.size
+        val rst = x._2.toList.toString.replaceAll("List", "").replace("(", "").replace(")", "")
 
-      val sqlProxy = new SqlProxy()
-      val client = DataSourceUtil.getConnection
-      try {
-        sqlProxy.executeUpdate(client, "update `clip_tpl` set num=?,status=1,result=? where tpl_id = ?",
-          Array(num,rst,tpl_id))
-      }
-      catch {
-        case e: Exception => e.printStackTrace()
-      } finally {
-        sqlProxy.shutdown(client)
-      }
-
-    })
-
-
-
-
-
-
-    /**
-    temp
-      .orderBy("tpl_id", "label_id")
-      .rdd
-      .map(x => {
-
-        val tpl_id = x.get(0).toString
-        val label_id = x.get(1).toString
-        val arr = x.get(2).toString.split(',')
-        val timeLong = x.get(3).toString
-        val resolution = x.get(4).toString
-        val frame = x.get(5).toString
-        val totalLong = x.get(6).toString
-        val seat_num = x.get(7).toString.toInt
-
-        // 包装成样例类 Template
-        val template = Template(label_id, Label(arr.toList, timeLong), resolution, frame, totalLong, seat_num)
-
-        (tpl_id, template)
-
-      })
-      // 按模板名称分组
-      .groupByKey()
-      // 分别对每个模板的标签进行处理
-      .mapValues(x => {
-        val tpl_Sorted = x.toList.sortBy(_.label_id)
-
-        for (tpl <- tpl_Sorted) {
-          val label_id = tpl.label_id
-
-          // 对于模块每一个标签,进行查询
-          spark.sql(
-            s"""
-               |select string_vid,media_name,string_class3_list,string_time_long,string_time
-               |from video_wave
-               |join temp
-               |on array_intersect(string_class3_list,arr)=arr
-               |where video_wave.resolution=temp.resolution
-               |and video_wave.frame=temp.frame
-               |""".stripMargin)
-            .createOrReplaceTempView(label_id)
-
+        val sqlProxy = new SqlProxy()
+        val client = DataSourceUtil.getConnection
+        try {
+          sqlProxy.executeUpdate(client, "update `clip_tpl` set num=?,status=1,result=? where tpl_id = ?",
+            Array(num, rst, tpl_id))
+        }
+        catch {
+          case e: Exception => e.printStackTrace()
+        } finally {
+          sqlProxy.shutdown(client)
         }
 
-        // 从每个label_id中取一条，组合
-        var minLineNum = 9999L
-        var minTable = "label1"
-        for (tpl <- tpl_Sorted) {
-          val label_id = tpl.label_id
-          val curLineNum = spark.sql(
-            s"""
-               |select *
-               |from ${label_id}
-               |""".stripMargin)
-            .count()
-          if (curLineNum < minLineNum){
-            minLineNum = curLineNum
-            minTable = tpl.label_id
-          }
-
-          spark.sql(
-            """
-              |select *
-              |from minTable
-              |""".stripMargin)
-            .rdd
-            .map(row => {
-              val string_vid = row.get(0)
-              val string_time = row.get(4)
-
-            })
-
-        }
-
-
       })
-
-**/
 
     spark.close()
     logWarning("End")
