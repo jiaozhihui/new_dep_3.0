@@ -86,7 +86,7 @@ object Editing extends Logging {
       spark.sql(
         s"""
            |select *,
-           |       row_number() OVER (PARTITION BY label_id ORDER BY label_id DESC) rank
+           |       row_number() OVER (PARTITION BY tpl_id,label_id ORDER BY label_id DESC) rank
            |from (
            |  select tpl_id,
            |         label_id,
@@ -111,27 +111,27 @@ object Editing extends Logging {
            |order by label_id
            |""".stripMargin)
         .createOrReplaceTempView("ranked")
-      //        .show(1000,false)
+//              .show(1000,false)
       /**
        * +------+--------+------------------------------------+----------------+------------------+----------------+---------------+----------+-----+--------+---------+--------+----+
        * |tpl_id|label_id|string_vid                          |media_name      |string_class3_list|string_time_long|string_time    |resolution|frame|timeLong|totalLong|seat_num|rank|
        * +------+--------+------------------------------------+----------------+------------------+----------------+---------------+----------+-----+--------+---------+--------+----+
+       * |2     |label1  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[沙发]            |21660           |733120_754780  |1280*720  |20   |21000   |100000   |3       |1   |
        * |1     |label1  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[沙发]            |21660           |733120_754780  |1280*720  |20   |21000   |100000   |3       |1   |
-       * |2     |label1  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[沙发]            |21660           |733120_754780  |1280*720  |20   |21000   |100000   |3       |2   |
        * |1     |label2  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[王丽坤, 朱亚文]  |14900           |144880_159780  |1280*720  |20   |15000   |100000   |3       |1   |
-       * |2     |label2  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[王丽坤, 朱亚文]  |14900           |144880_159780  |1280*720  |20   |15000   |100000   |3       |2   |
-       * |1     |label3  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[电脑椅]          |15660           |2535920_2551580|1280*720  |20   |15000   |100000   |3       |1   |
-       * |2     |label3  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[电脑椅]          |14940           |2413440_2428380|1280*720  |20   |15000   |100000   |3       |4   |
+       * |2     |label2  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[王丽坤, 朱亚文]  |14900           |144880_159780  |1280*720  |20   |15000   |100000   |3       |1   |
+       * |2     |label3  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[电脑椅]          |14940           |2413440_2428380|1280*720  |20   |15000   |100000   |3       |1   |
+       * |1     |label3  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[电脑椅]          |14940           |2413440_2428380|1280*720  |20   |15000   |100000   |3       |1   |
        * |2     |label3  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[电脑椅]          |15660           |2535920_2551580|1280*720  |20   |15000   |100000   |3       |2   |
-       * |1     |label3  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[电脑椅]          |14940           |2413440_2428380|1280*720  |20   |15000   |100000   |3       |3   |
+       * |1     |label3  |0199a921-7893-4cab-ba7f-c1ef91146633|漂洋过海来看你12|[电脑椅]          |15660           |2535920_2551580|1280*720  |20   |15000   |100000   |3       |2   |
        * +------+--------+------------------------------------+----------------+------------------+----------------+---------------+----------+-----+--------+---------+--------+----+
        */
 
-      // 木桶高度标注(count(rank))
+      // 每个木板高度标注(count(*)),每个标签搜出来的数量 -> count,即每个木板的高度
       spark.sql(
         """
-          |select first(tpl_id) tpl_id,
-          |       collect_list(label_id) as label_id,
+          |select tpl_id,
+          |       label_id,
           |       collect_list(string_vid) as string_vid,
           |       collect_list(media_name) as media_name,
           |       collect_list(concat_ws(';',string_class3_list)) as string_class3_list,
@@ -141,42 +141,54 @@ object Editing extends Logging {
           |       collect_list(frame) as frame,
           |       collect_list(timeLong) as timeLong,
           |       first(totalLong) totalLong,
-          |       count(rank) count,
+          |       count(*) count,
           |       first(seat_num) seat_num
           |from ranked
-          |group by rank
+          |group by tpl_id,label_id
           |""".stripMargin)
-        .createOrReplaceTempView("countRank")
-      //        .show(false)
+                .createOrReplaceTempView("boardLength")
+//        .show(false)
       /**
-       * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
-       * |tpl_id|label_id                |string_vid                                                                                                        |media_name                                            |string_class3_list           |string_time_long     |string_time                                    |resolution                    |frame       |timeLong             |totalLong|count|seat_num|
-       * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
-       * |1     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅]|[21660, 14900, 15660]|[733120_754780, 144880_159780, 2535920_2551580]|[1280*720, 1280*720, 1280*720]|[20, 20, 20]|[21000, 15000, 15000]|100000   |3    |3       |
-       * |1     |[label3]                |[0199a921-7893-4cab-ba7f-c1ef91146633]                                                                            |[漂洋过海来看你12]                                    |[电脑椅]                     |[14940]              |[2413440_2428380]                              |[1280*720]                    |[20]        |[15000]              |100000   |1    |3       |
-       * |2     |[label3]                |[0199a921-7893-4cab-ba7f-c1ef91146633]                                                                            |[漂洋过海来看你12]                                    |[电脑椅]                     |[14940]              |[2413440_2428380]                              |[1280*720]                    |[20]        |[15000]              |100000   |1    |3       |
-       * |2     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅]|[21660, 14900, 15660]|[733120_754780, 144880_159780, 2535920_2551580]|[1280*720, 1280*720, 1280*720]|[20, 20, 20]|[21000, 15000, 15000]|100000   |3    |3       |
-       * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
+       * +------+--------+----------------------------------------------------------------------------+------------------------------------+------------------+----------------+----------------------------------+--------------------+--------+--------------+---------+-----+--------+
+       * |tpl_id|label_id|string_vid                                                                  |media_name                          |string_class3_list|string_time_long|string_time                       |resolution          |frame   |timeLong      |totalLong|count|seat_num|
+       * +------+--------+----------------------------------------------------------------------------+------------------------------------+------------------+----------------+----------------------------------+--------------------+--------+--------------+---------+-----+--------+
+       * |1     |label1  |[0199a921-7893-4cab-ba7f-c1ef91146633]                                      |[漂洋过海来看你12]                  |[沙发]            |[21660]         |[733120_754780]                   |[1280*720]          |[20]    |[21000]       |100000   |1    |3       |
+       * |2     |label1  |[0199a921-7893-4cab-ba7f-c1ef91146633]                                      |[漂洋过海来看你12]                  |[沙发]            |[21660]         |[733120_754780]                   |[1280*720]          |[20]    |[21000]       |100000   |1    |3       |
+       * |1     |label2  |[0199a921-7893-4cab-ba7f-c1ef91146633]                                      |[漂洋过海来看你12]                  |[王丽坤;朱亚文]   |[14900]         |[144880_159780]                   |[1280*720]          |[20]    |[15000]       |100000   |1    |3       |
+       * |2     |label2  |[0199a921-7893-4cab-ba7f-c1ef91146633]                                      |[漂洋过海来看你12]                  |[王丽坤;朱亚文]   |[14900]         |[144880_159780]                   |[1280*720]          |[20]    |[15000]       |100000   |1    |3       |
+       * |1     |label3  |[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12]|[电脑椅, 电脑椅]  |[15660, 14940]  |[2535920_2551580, 2413440_2428380]|[1280*720, 1280*720]|[20, 20]|[15000, 15000]|100000   |2    |3       |
+       * |2     |label3  |[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12]|[电脑椅, 电脑椅]  |[15660, 14940]  |[2535920_2551580, 2413440_2428380]|[1280*720, 1280*720]|[20, 20]|[15000, 15000]|100000   |2    |3       |
+       * +------+--------+----------------------------------------------------------------------------+------------------------------------+------------------+----------------+----------------------------------+--------------------+--------+--------------+---------+-----+--------+
        */
 
-      // 木桶取最低高度,并压缩
+      // 得到每个木桶的短板高度(shortSlab),并将每个模板压缩
       spark.sql(
         """
-          |select *
-          |from countRank
-          |where count=seat_num
+          |select tpl_id,
+          |       collect_list(label_id) as label_id,
+          |       collect_list(concat_ws(';',string_vid)) as string_vid,
+          |       collect_list(concat_ws(';',media_name)) as media_name,
+          |       collect_list(concat_ws(';',string_class3_list)) as string_class3_list,
+          |       collect_list(concat_ws(';',string_time_long)) as string_time_long,
+          |       collect_list(concat_ws(';',string_time)) as string_time,
+          |       collect_list(concat_ws(';',resolution)) as resolution,
+          |       collect_list(concat_ws(';',frame)) as frame,
+          |       collect_list(concat_ws(';',timeLong)) as timeLong,
+          |       first(totalLong) totalLong,
+          |       min(count) shortSlab,
+          |       first(seat_num) seat_num
+          |from boardLength
+          |group by tpl_id
           |""".stripMargin)
-        //        .show(false)
-
+//          .show(false)
         /**
-         * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
-         * |tpl_id|label_id                |string_vid                                                                                                        |media_name                                            |string_class3_list           |string_time_long     |string_time                                    |resolution                    |frame       |timeLong             |totalLong|count|seat_num|
-         * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
-         * |1     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅]|[21660, 14900, 14940]|[733120_754780, 144880_159780, 2413440_2428380]|[1280*720, 1280*720, 1280*720]|[20, 20, 20]|[21000, 15000, 15000]|100000   |3    |3       |
-         * |2     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅]|[21660, 14900, 14940]|[733120_754780, 144880_159780, 2413440_2428380]|[1280*720, 1280*720, 1280*720]|[20, 20, 20]|[21000, 15000, 15000]|100000   |3    |3       |
-         * +------+------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------+-----------------------------+---------------------+-----------------------------------------------+------------------------------+------------+---------------------+---------+-----+--------+
+         * +------+------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------+------------------------------------+---------------------------+---------------------------------------------------------------+---------------------------------------+---------------+---------------------------+---------+---------+--------+
+         * |tpl_id|label_id                |string_vid                                                                                                                                             |media_name                                                             |string_class3_list                  |string_time_long           |string_time                                                    |resolution                             |frame          |timeLong                   |totalLong|shortSlab|seat_num|
+         * +------+------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------+------------------------------------+---------------------------+---------------------------------------------------------------+---------------------------------------+---------------+---------------------------+---------+---------+--------+
+         * |1     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633;0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12;漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅;电脑椅]|[21660, 14900, 14940;15660]|[733120_754780, 144880_159780, 2413440_2428380;2535920_2551580]|[1280*720, 1280*720, 1280*720;1280*720]|[20, 20, 20;20]|[21000, 15000, 15000;15000]|100000   |1        |3       |
+         * |2     |[label1, label2, label3]|[0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633, 0199a921-7893-4cab-ba7f-c1ef91146633;0199a921-7893-4cab-ba7f-c1ef91146633]|[漂洋过海来看你12, 漂洋过海来看你12, 漂洋过海来看你12;漂洋过海来看你12]|[沙发, 王丽坤;朱亚文, 电脑椅;电脑椅]|[21660, 14900, 14940;15660]|[733120_754780, 144880_159780, 2413440_2428380;2535920_2551580]|[1280*720, 1280*720, 1280*720;1280*720]|[20, 20, 20;20]|[21000, 15000, 15000;15000]|100000   |1        |3       |
+         * +------+------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------+------------------------------------+---------------------------+---------------------------------------------------------------+---------------------------------------+---------------+---------------------------+---------+---------+--------+
          */
-
 
         .rdd
         // 包装成json形式
@@ -195,37 +207,67 @@ object Editing extends Logging {
           val frame = x.get(8).toString.split(',').toList
           val timeLong = x.get(9).toString.split(',').toList
           val totalLong = x.get(10).toString.toInt
-          val count = x.get(11).toString.toInt
+          val shortSlab = x.get(11).toString.toInt
           val seat_num = x.get(12).toString.toInt
 
+          // 只有单个标签位的特殊处理
+          if (seat_num == 1) {
+            val clipNum = totalLong / timeLong.head.split(';').head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").toInt
 
-          for (i <- 0 until seat_num) {
+            // 判断单标签搜到的片段数是否大于需要的片段数
+            if (shortSlab > clipNum) {
+              for (i <- 0 until clipNum){
+                val tplObject = new JSONObject()
 
-            val tplObject = new JSONObject()
+                tplObject.put("tpl_id", tpl_id)
+                tplObject.put("label_id", label_id.head.split(';').toList.head)
+                tplObject.put("string_vid", string_vid.head.split(';').toList(i))
+                tplObject.put("media_name", media_name.head.split(';').toList(i))
+                tplObject.put("string_class3_list", string_class3_list.head.split(';').toList(i))
+                tplObject.put("string_time_long", string_time_long.head.split(';').toList(i))
+                tplObject.put("string_time", string_time.head.split(';').toList(i))
+                tplObject.put("resolution", resolution.head.split(';').toList(i))
+                tplObject.put("frame", frame.head.split(';').toList(i))
+                tplObject.put("timeLong", timeLong.head.split(';').toList(i))
+                tplObject.put("totalLong", totalLong)
+                tplObject.put("shortSlab", shortSlab)
 
-            tplObject.put("tpl_id", tpl_id)
-            tplObject.put("label_id", label_id(i))
-            tplObject.put("string_vid", string_vid(i))
-            tplObject.put("media_name", media_name(i))
-            tplObject.put("string_class3_list", string_class3_list(i))
-            tplObject.put("string_time_long", string_time_long(i))
-            tplObject.put("string_time", string_time(i))
-            tplObject.put("resolution", resolution(i))
-            tplObject.put("frame", frame(i))
-            tplObject.put("timeLong", timeLong(i))
-            tplObject.put("totalLong", totalLong)
-            tplObject.put("count", count)
+                tplArray.add(tplObject)
+              }
+            }
 
-            tplArray.add(tplObject)
+          } else {
 
+            // 根据标签位n，将n段视频拼接成一个Json
+            for (i <- 0 until seat_num) {
+
+              val tplObject = new JSONObject()
+
+              tplObject.put("tpl_id", tpl_id)
+              tplObject.put("label_id", label_id(i).split(';').toList(shortSlab - 1))
+              tplObject.put("string_vid", string_vid(i).split(';').toList(shortSlab - 1))
+              tplObject.put("media_name", media_name(i).split(';').toList(shortSlab - 1))
+              tplObject.put("string_class3_list", string_class3_list(i).split(';').toList(shortSlab - 1))
+              tplObject.put("string_time_long", string_time_long(i).split(';').toList(shortSlab - 1))
+              tplObject.put("string_time", string_time(i).split(';').toList(shortSlab - 1))
+              tplObject.put("resolution", resolution(i).split(';').toList(shortSlab - 1))
+              tplObject.put("frame", frame(i).split(';').toList(shortSlab - 1))
+              tplObject.put("timeLong", timeLong(i).split(';').toList(shortSlab - 1))
+              tplObject.put("totalLong", totalLong)
+              tplObject.put("shortSlab", shortSlab)
+
+              tplArray.add(tplObject)
+
+            }
           }
           val resultJson = tplArray.toString.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")
           resultJson
         })
-        //      .collect().foreach(println)
+//              .collect().foreach(println)
         /**
-         * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤,朱亚文","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2535920_2551580","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":3,"string_time_long":" 15660","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
-         * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤,朱亚文","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2535920_2551580","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"2","count":3,"string_time_long":" 15660","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
+         * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"1","count":1,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":1,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2413440_2428380","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":1,"string_time_long":" 14940","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
+         * [{"string_time":"298320_313580","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15260","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"1938040_1953580","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15540","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"1591040_1606740","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15700","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"1845120_1860940","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15820","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"2524720_2540140","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15420","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"31880_47140","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15260","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"}]
+         * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"2","count":1,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"2","count":1,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2413440_2428380","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"2","count":1,"string_time_long":" 14940","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
          */
 
         // 将结果保存,更新mysql表数据
