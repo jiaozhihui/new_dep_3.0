@@ -1,14 +1,12 @@
 package com.bjvca.filmedit
 
-import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
-import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy, TableRegister}
+import com.alibaba.fastjson.{JSONArray, JSONObject}
+import com.bjvca.commonutils.{ConfUtils, TableRegister}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 
-import scala.collection.mutable.ListBuffer
-
-object Editing extends Logging {
+object Editing_copy extends Logging {
   def main(args: Array[String]): Unit = {
 
 //    while (true) {
@@ -198,6 +196,8 @@ object Editing extends Logging {
 
           val resultObj = new JSONObject()
 
+          val tplArray = new JSONArray()
+
           val tpl_id = x.get(0).toString
           val label_id = x.get(1).toString.split(',').toList
           val string_vid = x.get(2).toString.split(',').toList
@@ -220,108 +220,56 @@ object Editing extends Logging {
           // 只有单个标签位的特殊处理
           if (seat_num == 1) {
             val clipNum = totalLong / timeLong.head.split(';').head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").toInt
-//
-//            // 判断单标签搜到的片段数是否大于需要的片段数
-//            if (shortSlab > clipNum) {
-//              for (i <- 0 until clipNum){
-//
-//                val tplArray = new JSONArray()
-//
-//                val tplObject = new JSONObject()
-//
-//                tplObject.put("tpl_id", tpl_id)
-//                tplObject.put("label_id", label_id.head.split(';').toList.head)
-//                tplObject.put("string_vid", string_vid.head.split(';').toList(i))
-//                tplObject.put("media_name", media_name.head.split(';').toList(i))
-//                tplObject.put("string_class3_list", string_class3_list.head.split(';').toList(i))
-//                tplObject.put("string_time_long", string_time_long.head.split(';').toList(i))
-//                tplObject.put("string_time", string_time.head.split(';').toList(i))
-//                tplObject.put("resolution", resolution.head.split(';').toList(i))
-//                tplObject.put("frame", frame.head.split(';').toList(i))
-//                tplObject.put("timeLong", timeLong.head.split(';').toList(i))
-//                tplObject.put("totalLong", totalLong)
-//                tplObject.put("shortSlab", shortSlab)
-//
-//                tplArray.add(tplObject)
-//              }
-//            }
 
-            for (x <- 0 until shortSlab/clipNum) {
-
-//              if (shortSlab > clipNum) {
-
-                val tplArray = new JSONArray()
-
-                // 根据标签位n，将n段视频拼接成一个Json
-                for (i <- 0 until clipNum) {
-
-                  val tplObject = new JSONObject()
-
-                  tplObject.put("tpl_id", tpl_id)
-                  tplObject.put("label_id", label_id.head.split(';').head)
-                  tplObject.put("string_vid", string_vid.head.split(';').toList(x))
-                  tplObject.put("media_name", media_name.head.split(';').toList(x))
-                  tplObject.put("string_class3_list", string_class3_list.head)
-                  tplObject.put("string_time_long", string_time_long.head.split(';').toList(x))
-                  tplObject.put("string_time", string_time.head.split(';').toList(x))
-                  tplObject.put("resolution", resolution.head.split(';').toList.head)
-                  tplObject.put("frame", frame.head.split(';').toList.head)
-                  tplObject.put("timeLong", timeLong.head.split(';').toList.head)
-                  tplObject.put("totalLong", totalLong)
-                  tplObject.put("shortSlab", shortSlab)
-
-                  tplArray.add(tplObject)
-
-                }
-                val resultJson = tplArray.toString.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")
-
-                val nObject = JSON.parseArray(resultJson)
-                resultObj.put((x + 1).toString, nObject)
-
-              }
-              resultObj.toString
-              resultObj
-
-//            }
-
-
-          } else {
-
-            for (x <- 0 until shortSlab) {
-
-              val tplArray = new JSONArray()
-
-              // 根据标签位n，将n段视频拼接成一个Json
-              for (i <- 0 until seat_num) {
+            // 判断单标签搜到的片段数是否大于需要的片段数
+            if (shortSlab > clipNum) {
+              for (i <- 0 until clipNum){
 
                 val tplObject = new JSONObject()
 
                 tplObject.put("tpl_id", tpl_id)
-                tplObject.put("label_id", label_id(i).split(';').head)
-                tplObject.put("string_vid", string_vid(i).split(';').toList(x))
-                tplObject.put("media_name", media_name(i).split(';').toList(x))
-                tplObject.put("string_class3_list", string_class3_list(i))
-                tplObject.put("string_time_long", string_time_long(i).split(';').toList(x))
-                tplObject.put("string_time", string_time(i).split(';').toList(x))
-                tplObject.put("resolution", resolution(i).split(';').toList.head)
-                tplObject.put("frame", frame(i).split(';').toList.head)
-                tplObject.put("timeLong", timeLong(i).split(';').toList.head)
+                tplObject.put("label_id", label_id.head.split(';').toList.head)
+                tplObject.put("string_vid", string_vid.head.split(';').toList(i))
+                tplObject.put("media_name", media_name.head.split(';').toList(i))
+                tplObject.put("string_class3_list", string_class3_list.head.split(';').toList(i))
+                tplObject.put("string_time_long", string_time_long.head.split(';').toList(i))
+                tplObject.put("string_time", string_time.head.split(';').toList(i))
+                tplObject.put("resolution", resolution.head.split(';').toList(i))
+                tplObject.put("frame", frame.head.split(';').toList(i))
+                tplObject.put("timeLong", timeLong.head.split(';').toList(i))
                 tplObject.put("totalLong", totalLong)
                 tplObject.put("shortSlab", shortSlab)
 
                 tplArray.add(tplObject)
-
               }
-              val resultJson = tplArray.toString.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")
+            }
 
-              val nObject = JSON.parseArray(resultJson)
-              resultObj.put((x+1).toString,nObject)
+          } else {
+
+            // 根据标签位n，将n段视频拼接成一个Json
+            for (i <- 0 until seat_num) {
+
+              val tplObject = new JSONObject()
+
+              tplObject.put("tpl_id", tpl_id)
+              tplObject.put("label_id", label_id(i).split(';').toList.head)
+              tplObject.put("string_vid", string_vid(i).split(';').toList(shortSlab - i - 1))
+              tplObject.put("media_name", media_name(i).split(';').toList(shortSlab - 1))
+              tplObject.put("string_class3_list", string_class3_list(i))
+              tplObject.put("string_time_long", string_time_long(i).split(';').toList(shortSlab - 1))
+              tplObject.put("string_time", string_time(i).split(';').toList(shortSlab - 1))
+              tplObject.put("resolution", resolution(i).split(';').toList(shortSlab - 1))
+              tplObject.put("frame", frame(i).split(';').toList(shortSlab - 1))
+              tplObject.put("timeLong", timeLong(i).split(';').toList(shortSlab - 1))
+              tplObject.put("totalLong", totalLong)
+              tplObject.put("shortSlab", shortSlab)
+
+              tplArray.add(tplObject)
 
             }
-          resultObj.toString
-          resultObj
           }
-
+          val resultJson = tplArray.toString.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")
+          resultJson
         })
               .collect().foreach(println)
         /**
@@ -359,7 +307,7 @@ object Editing extends Logging {
       spark.close()
       logWarning("End")
 
-    }
+//    }
 
-//  }
+  }
 }
