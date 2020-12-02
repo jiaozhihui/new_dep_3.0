@@ -251,7 +251,7 @@ object Editing extends Logging {
                 val tplArray = new JSONArray()
 
                 // 根据标签位n，将n段视频拼接成一个Json
-                for (i <- 0 until clipNum) {
+                for (_ <- 0 until clipNum) {
 
                   val tplObject = new JSONObject()
 
