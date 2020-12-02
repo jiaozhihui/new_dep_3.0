@@ -27,7 +27,7 @@ object Editing extends Logging {
 
       val spark = SparkSession.builder.config(conf).getOrCreate()
 
-      // 0.读取任务表
+      // 读取mysql主表作为任务表
       spark.read.format("jdbc")
         .options(Map(
           "url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
@@ -42,16 +42,16 @@ object Editing extends Logging {
 
       spark.sql("cache table clip_task")
 
-      //注册mysql的广告位表，从mysql中拿到广告位数据
+      //注册mysql的标签位信息
       TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
         confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "clip_tpl_class", "clip_tpl_class")
 
-      // 加载索引表 addx，从es中拿到正在投放的计划数据
+      // 加载Es中所有片段信息
       TableRegister.registEsTable(spark, confUtil.adxStreamingEsHost, "9200",
         confUtil.adxStreamingEsUser, confUtil.adxStreamingEsPassword, confUtil.adxStreamingEsIndex, "video_wave")
 
 
-      // 拿到将要查询的标签
+      // 关联任务表与标签位信息表，得到将要查询的标签
       val temp = spark.sql(
         """
           |select clip_tpl_class.tpl_id tpl_id,
@@ -68,7 +68,6 @@ object Editing extends Logging {
           |""".stripMargin)
       temp.createOrReplaceTempView("target")
 //            .show()
-
       /**
        * +------+--------+----------------+--------+----------+-----+---------+--------+
        * |tpl_id|label_id|             arr|timeLong|resolution|frame|totalLong|seat_num|
