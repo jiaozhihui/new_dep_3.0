@@ -220,31 +220,6 @@ object Editing extends Logging {
           // 只有单个标签位的特殊处理
           if (seat_num == 1) {
             val clipNum = totalLong / timeLong.head.split(';').head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").toInt
-//
-//            // 判断单标签搜到的片段数是否大于需要的片段数
-//            if (shortSlab > clipNum) {
-//              for (i <- 0 until clipNum){
-//
-//                val tplArray = new JSONArray()
-//
-//                val tplObject = new JSONObject()
-//
-//                tplObject.put("tpl_id", tpl_id)
-//                tplObject.put("label_id", label_id.head.split(';').toList.head)
-//                tplObject.put("string_vid", string_vid.head.split(';').toList(i))
-//                tplObject.put("media_name", media_name.head.split(';').toList(i))
-//                tplObject.put("string_class3_list", string_class3_list.head.split(';').toList(i))
-//                tplObject.put("string_time_long", string_time_long.head.split(';').toList(i))
-//                tplObject.put("string_time", string_time.head.split(';').toList(i))
-//                tplObject.put("resolution", resolution.head.split(';').toList(i))
-//                tplObject.put("frame", frame.head.split(';').toList(i))
-//                tplObject.put("timeLong", timeLong.head.split(';').toList(i))
-//                tplObject.put("totalLong", totalLong)
-//                tplObject.put("shortSlab", shortSlab)
-//
-//                tplArray.add(tplObject)
-//              }
-//            }
 
             for (x <- 0 until shortSlab/clipNum) {
 
