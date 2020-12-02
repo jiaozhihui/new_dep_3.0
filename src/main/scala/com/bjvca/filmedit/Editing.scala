@@ -248,8 +248,6 @@ object Editing extends Logging {
 
             for (x <- 0 until shortSlab/clipNum) {
 
-//              if (shortSlab > clipNum) {
-
                 val tplArray = new JSONArray()
 
                 // 根据标签位n，将n段视频拼接成一个Json
@@ -281,9 +279,6 @@ object Editing extends Logging {
               }
               resultObj.toString
               resultObj
-
-//            }
-
 
           } else {
 
