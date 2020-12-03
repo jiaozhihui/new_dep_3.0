@@ -269,14 +269,14 @@ object Editing_new extends Logging {
                 try {
                   sqlProxy.executeUpdate(client, s"insert into clip_tpl_result values(null,?,?,?,?,?,?,null,?,?,?,null)",
                     Array(tpl_id,
-                      label_id(0).split(';').head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
+                      label_id.head.split(';').head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
                       x,
-                      media_name.head.split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      resolution.head.split(';').toList.head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      string_class3_list.head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      string_time.head.split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      string_time_long.head.split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      string_vid.head.split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")))
+                      media_name.head.split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      resolution.head.split(';').toList.head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      string_class3_list.head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      string_time.head.split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      string_time_long.head.split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      string_vid.head.split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", "")))
                 }
                 catch {
                   case e: Exception => e.printStackTrace()
@@ -301,14 +301,14 @@ object Editing_new extends Logging {
                 try {
                   sqlProxy.executeUpdate(client, s"insert into clip_tpl_result values(null,?,?,?,?,?,?,null,?,?,?,null)",
                     Array(tpl_id,
-                      label_id(i).split(';').head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
+                      label_id(i).split(';').head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
                       x,
-                      media_name(i).split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      resolution(i).split(';').toList.head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      string_class3_list(i).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      string_time(i).split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      string_time_long(i).split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ","),
-                      string_vid(i).split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")))
+                      media_name(i).split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      resolution(i).split(';').toList.head.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      string_class3_list(i).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      string_time(i).split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      string_time_long(i).split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", ""),
+                      string_vid(i).split(';').toList(x).replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",").replace(" ", "")))
                 }
                 catch {
                   case e: Exception => e.printStackTrace()
