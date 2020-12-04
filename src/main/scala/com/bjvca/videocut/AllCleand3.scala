@@ -501,6 +501,7 @@ object AllCleand3 extends Logging {
             }
 
             tempJsonObj.put("string_class3_list", class3List)
+            tempJsonObj.put("string_class3", class3List.toString)
             tempJsonObj.put("string_man_list", manList)
             tempJsonObj.put("string_object_list", objectList)
             tempJsonObj.put("string_action_list", actionList)
@@ -1091,6 +1092,7 @@ object AllCleand3 extends Logging {
               newObject.put("string_time", string_time)
               newObject.put("string_time_long", string_time_long)
               newObject.put("string_class3_list", new JSONArray())
+              newObject.put("string_class3", "")
               newObject.put("string_man_list", new JSONArray())
               newObject.put("string_object_list", new JSONArray())
               newObject.put("string_action_list", new JSONArray())
@@ -1217,6 +1219,7 @@ object AllCleand3 extends Logging {
                     newObject.put("b_t", string_time.split('_').head.toLong)
                     newObject.put("string_time_long", string_time_long)
                     newObject.put("string_class3_list", string_class3_list)
+                    newObject.put("string_class3", string_class3_list.toString)
                     newObject.put("string_man_list", manList)
                     newObject.put("string_object_list", objectList)
                     newObject.put("string_action_list", actionList)

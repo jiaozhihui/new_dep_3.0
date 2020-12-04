@@ -99,6 +99,7 @@ object CuterUtils3 {
 
 
     temp.put("string_class3_list", class3List)
+    temp.put("string_class3", class3List.toString)
     temp.put("string_man_list", manList)
     temp.put("string_object_list", objectList)
     temp.put("string_action_list", actionList)
