@@ -2,12 +2,11 @@ package com.bjvca.filmedit
 
 import java.sql.{Connection, DriverManager, PreparedStatement}
 
+import com.alibaba.fastjson.JSON
 import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy, TableRegister}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
-
-import scala.collection.mutable.ArrayBuffer
+import org.apache.spark.sql.SparkSession
 
 object Editing_new extends Logging {
   def main(args: Array[String]): Unit = {
@@ -22,7 +21,7 @@ object Editing_new extends Logging {
         .setMaster("local[*]")
         .setAppName("Editing")
         .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        .set("spark.debug.maxToStringFields", "200")
+        .set("spark.debug.maxToStringFields", "2000")
         .set("es.mapping.date.rich", "false") //日期富类型
         // es
         .set("es.read.field.as.array.include", "true")
@@ -161,6 +160,8 @@ object Editing_new extends Logging {
 //      .show(false)
         .createOrReplaceTempView("shortSlab")
 
+
+
     spark.sql(
       """
         |select resolution_ranked.*,shortSlab
@@ -207,8 +208,11 @@ object Editing_new extends Logging {
         |or pid <= floor(shortSlab/floor(totalLong/timeLong)) and seat_num = 1
         |""".stripMargin)
 
-//        .show(100,false)
-//
+
+    rstDF.createOrReplaceTempView("rst")
+//            .show(100,false)
+
+
         rstDF.foreachPartition(iterator => {
 
         var conn: Connection = null
@@ -258,6 +262,41 @@ object Editing_new extends Logging {
         }
       })
 
+    spark.sql(
+      """
+        |select tpl_id,max(rst.pid) num
+        |from rst
+        |group by tpl_id
+        |""".stripMargin)
+      .createOrReplaceTempView("numTab")
+    //          .show(100,false)
+
+
+    spark.sql(
+      """
+        |select *
+        |from numTab
+        |""".stripMargin)
+      .toJSON
+      .rdd
+      .foreach(str => {
+        val nObject = JSON.parseObject(str)
+        val tpl_id = nObject.getString("tpl_id")
+        val num = nObject.getString("num")
+
+        val sqlProxy = new SqlProxy()
+        val client = DataSourceUtil.getConnection
+        try {
+          sqlProxy.executeUpdate(client, "update clip_tpl set num=? where tpl_id=?",
+            Array(num,tpl_id))
+        }
+        catch {
+          case e: Exception => e.printStackTrace()
+        } finally {
+          sqlProxy.shutdown(client)
+        }
+      })
+
     rstDF.rdd.groupBy(row => {
 //      val str = row.mkString
 //      val i = str.indexOf("tpl_id")
@@ -269,13 +308,12 @@ object Editing_new extends Logging {
 
       .foreach(x => {
         val tpl_id = x._1
-        val num = x._2.toList.size
 
         val sqlProxy = new SqlProxy()
         val client = DataSourceUtil.getConnection
         try {
-          sqlProxy.executeUpdate(client, "update `clip_tpl` set num=?,status=1 where tpl_id = ?",
-            Array(num, tpl_id))
+          sqlProxy.executeUpdate(client, "update `clip_tpl` set status=1 where tpl_id = ?",
+            Array(tpl_id))
         }
         catch {
           case e: Exception => e.printStackTrace()
@@ -289,6 +327,7 @@ object Editing_new extends Logging {
       spark.close()
       logWarning("End")
 
+      Thread.sleep(5000)
 //    }
 
   }

@@ -21,9 +21,9 @@ object AllCleand3 extends Logging {
 
     logWarning("开始合成")
 
-        var i = 0
+//        var i = 0
 
-        while (true) {
+//        while (true) {
 
     val confUtil = new ConfUtils("application.conf")
     //    val confUtil = new ConfUtils("线上application.conf")
@@ -36,8 +36,8 @@ object AllCleand3 extends Logging {
       .config("spark.debug.maxToStringFields", "200")
       .getOrCreate()
 
-          i = i + 1
-          logWarning("第" + i + "次合并任务开始...")
+//          i = i + 1
+//          logWarning("第" + i + "次合并任务开始...")
 
           // 0.读取任务表
           spark.read.format("jdbc")
@@ -53,6 +53,32 @@ object AllCleand3 extends Logging {
             .createOrReplaceTempView("task")
 
           spark.sql("cache table task")
+
+    spark.sql(
+      """
+        |select *
+        |from task
+        |""".stripMargin)
+      .toJSON
+      .rdd
+      .foreach(str => {
+        val nObject = JSON.parseObject(str)
+        val vid = nObject.getString("video_id")
+
+        val sqlProxy = new SqlProxy()
+        val client = DataSourceUtil.getConnection
+        try {
+          sqlProxy.executeUpdate(client, "update task set status=-1 where video_id=?",
+            Array(vid))
+        }
+        catch {
+          case e: Exception => e.printStackTrace()
+        } finally {
+          sqlProxy.shutdown(client)
+        }
+      })
+
+    logWarning("更新task表状态为进行中")
 
     // 读取将要用到的表
     // 1.recognition2_behavior
@@ -653,7 +679,7 @@ object AllCleand3 extends Logging {
 
           val thisSeat = seatSorted(i)
 
-          if (thisSeat.ad_seat_b_time.toLong - temp.ad_seat_e_time.toLong <= 10000) {
+          if (thisSeat.ad_seat_b_time.toLong - temp.ad_seat_e_time.toLong <= 3000) {
             // 合并广告位，然后继续等待下一个标签
             temp = temp.copy(ad_seat_e_time = thisSeat.ad_seat_e_time)
           } else {
@@ -1346,9 +1372,9 @@ object AllCleand3 extends Logging {
 
           logWarning("更新task表剩余status成功")
 
-          Thread.sleep(5000)
+//          Thread.sleep(5000)
 
     spark.close()
         }
-  }
+//  }
 }

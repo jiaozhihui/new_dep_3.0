@@ -31,13 +31,13 @@ object CuterUtils3 {
 //    val actionImgList = new JSONArray()
 //    val senceImgList = new JSONArray()
 
-    var minBTime: String = seats.head.ad_seat_b_time
-    var maxETime: String = seats.head.ad_seat_e_time
+    var minBTime: Long = seats.head.ad_seat_b_time.toLong
+    var maxETime: Long = seats.head.ad_seat_e_time.toLong
 
     for (seat <- seats) {
 
-      if (seat.ad_seat_b_time.toLong < minBTime.toLong) minBTime = seat.ad_seat_b_time
-      if (seat.ad_seat_e_time.toLong > maxETime.toLong) maxETime = seat.ad_seat_e_time
+      if (seat.ad_seat_b_time.toLong < minBTime) minBTime = seat.ad_seat_b_time.toLong
+      if (seat.ad_seat_e_time.toLong > maxETime) maxETime = seat.ad_seat_e_time.toLong
 
       val file1 = seat.video_id
       val file2 = seat.media_name
@@ -117,9 +117,16 @@ object CuterUtils3 {
 //    temp.put("string_action_img_list", actionImgList)
 //    temp.put("string_sence_img_list", senceImgList)
 
-    temp.put("string_time", minBTime + "_" + maxETime)
-    temp.put("b_t", minBTime.toLong)
-    temp.put("string_time_long", maxETime.toLong - minBTime.toLong)
+    var newBT = 0L
+    if (minBTime-3000>0){
+      newBT = minBTime-3000
+    } else {
+      newBT = 0
+    }
+
+    temp.put("string_time", newBT + "_" + (maxETime+4000))
+    temp.put("b_t", minBTime)
+    temp.put("string_time_long", maxETime - minBTime)
 
     temp.put("resourceId", "1")
 
