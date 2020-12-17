@@ -1,6 +1,6 @@
 package com.bjvca.videocut
 
-case class AdSeat(
+case class AdSeat4(
                    video_id: String,
                    project_id: String,
                    department_id: String,
@@ -15,7 +15,8 @@ case class AdSeat(
                    ad_seat_e_time: String,
                    ad_seat_img: String,
                    resolution: String,
-                   frame: Int
+                   frame: Int,
+                   tagTime: Long
                  )
 
 /**

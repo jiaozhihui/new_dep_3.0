@@ -1,4 +1,4 @@
-package com.bjvca.videocut
+package com.bjvca.kukaiapi
 
 case class AdSeat(
                    video_id: String,
@@ -33,6 +33,5 @@ case class AdSeat(
  * ad_seat_img: String          封面图
  * resolution: String           分辨率
  * frame： Int                  帧数
- * tagTime: String              标签时长（用作分析标签时长占比）
  *
  */

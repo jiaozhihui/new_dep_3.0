@@ -8,7 +8,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 
-object Editing_new extends Logging {
+object Editing_new2 extends Logging {
   def main(args: Array[String]): Unit = {
 
 //    while (true) {
@@ -59,6 +59,8 @@ object Editing_new extends Logging {
           |select clip_tpl_class.tpl_id tpl_id,
           |       label_id,
           |       split(class3_name,',') as arr,
+          |       minT*1000 minT,
+          |       maxT*1000 maxT,
           |       duration timeLong,
           |       total_duration totalLong,
           |       seat_num
@@ -83,6 +85,7 @@ object Editing_new extends Logging {
            |       frame,
            |       timeLong,
            |       totalLong,
+           |       project_id,
            |       seat_num,
            |       substring(t3.string_class_img_list1,1,instr(t3.string_class_img_list1,'.png')+3) string_class_img_list
            |from (
@@ -102,13 +105,17 @@ object Editing_new extends Logging {
            |             timeLong*1000 timeLong,
            |             totalLong*1000 totalLong,
            |             seat_num,
-           |             cast(video_wave.string_class_img_list as string) string_class_img_list
+           |             cast(video_wave.string_class_img_list as string) string_class_img_list,
+           |             project_id,
+           |             minT,
+           |             maxT
            |      from video_wave
            |      join target
            |      on array_intersect(string_class3_list,arr)=arr
+           |      where resourceId = 1
            |      ) b
-           |    where string_time_long >= timeLong-1000
-           |    and string_time_long <= timeLong+1000
+           |    where string_time_long >= minT
+           |    and string_time_long <= maxT
            |    order by tpl_id,label_id) t2) t3
            |""".stripMargin)
         .createOrReplaceTempView("ranked")
@@ -142,7 +149,7 @@ object Editing_new extends Logging {
 
     spark.sql(
       """
-        |select *,row_number() OVER (PARTITION BY tpl_id,label_id ORDER BY label_id DESC) rank
+        |select *,row_number() OVER (PARTITION BY tpl_id,label_id,resolution ORDER BY label_id DESC) rank
         |from ranked1
         |""".stripMargin)
 //      .show(1000,false)
@@ -186,6 +193,7 @@ object Editing_new extends Logging {
         |       string_time,
         |       string_time_long,
         |       string_vid,
+        |       project_id,
         |       rank
         |from (
         |   select tpl_id,
@@ -202,12 +210,12 @@ object Editing_new extends Logging {
         |          shortSlab,
         |          totalLong,
         |          timeLong,
+        |          project_id,
         |          seat_num
         |   from shortSlabed) b
         |where seat_num != 1
         |or pid <= floor(shortSlab/floor(totalLong/timeLong)) and seat_num = 1
         |""".stripMargin)
-
 
     rstDF.createOrReplaceTempView("rst")
 //            .show(100,false)
@@ -223,8 +231,8 @@ object Editing_new extends Logging {
           conn.setAutoCommit(false)
 
           ps = conn.prepareStatement(
-            """INSERT INTO clip_tpl_result(`id`,`tpl_id`,`label_id`,`pid`,`media_name`,`resolution`,`string_class3_list`,`string_class_img_list`,`string_time`,`string_time_long`,`string_vid`,`create_time`)
-              |VALUES(null,?,?,?,?,?,?,?,?,?,?,null)
+            """INSERT INTO clip_tpl_result(`id`,`tpl_id`,`label_id`,`pid`,`media_name`,`resolution`,`string_class3_list`,`string_class_img_list`,`string_time`,`string_time_long`,`string_vid`,`create_time`,`project_id`)
+              |VALUES(null,?,?,?,?,?,?,?,?,?,?,null,?)
               |""".stripMargin)
           var row = 0
           iterator.foreach(it => {
@@ -238,6 +246,7 @@ object Editing_new extends Logging {
             ps.setString(8, it.getAs[String]("string_time"))
             ps.setInt(9, it.getAs[Int]("string_time_long"))
             ps.setString(10, it.getAs[String]("string_vid"))
+            ps.setString(11, it.getAs[String]("project_id"))
 
             ps.addBatch()
             row = row + 1

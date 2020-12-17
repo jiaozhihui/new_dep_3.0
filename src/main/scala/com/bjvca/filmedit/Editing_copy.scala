@@ -1,7 +1,7 @@
 package com.bjvca.filmedit
 
 import com.alibaba.fastjson.{JSONArray, JSONObject}
-import com.bjvca.commonutils.{ConfUtils, TableRegister}
+import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy, TableRegister}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -271,7 +271,7 @@ object Editing_copy extends Logging {
           val resultJson = tplArray.toString.replaceAll("WrappedArray", "").replace("(", "").replace(")", "").replace(";", ",")
           resultJson
         })
-              .collect().foreach(println)
+//              .collect().foreach(println)
         /**
          * [{"string_time":"733120_754780","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"21000","totalLong":100000,"tpl_id":"1","count":1,"string_time_long":"21660","media_name":"漂洋过海来看你12","string_class3_list":"沙发","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":" 144880_159780","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":1,"string_time_long":" 14900","media_name":" 漂洋过海来看你12","string_class3_list":" 王丽坤","resolution":" 1280*720","label_id":" label2","frame":" 20"},{"string_time":" 2413440_2428380","string_vid":" 0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":" 15000","totalLong":100000,"tpl_id":"1","count":1,"string_time_long":" 14940","media_name":" 漂洋过海来看你12","string_class3_list":" 电脑椅","resolution":" 1280*720","label_id":" label3","frame":" 20"}]
          * [{"string_time":"298320_313580","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15260","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"1938040_1953580","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15540","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"1591040_1606740","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15700","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"1845120_1860940","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15820","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"2524720_2540140","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15420","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"},{"string_time":"31880_47140","string_vid":"0199a921-7893-4cab-ba7f-c1ef91146633","timeLong":"15000","totalLong":100000,"tpl_id":"3","count":10,"string_time_long":"15260","media_name":"漂洋过海来看你12","string_class3_list":"王丽坤","resolution":"1280*720","label_id":"label1","frame":"20"}]
@@ -279,30 +279,30 @@ object Editing_copy extends Logging {
          */
 
         // 将结果保存,更新mysql表数据
-//        .groupBy(str => {
-//          val i = str.indexOf("tpl_id")
-//          val tpl_id = str.substring(i + 9, i + 10)
-//          tpl_id
-//          //        JSON.parseObject(str).getString("tpl_id")
-//        })
-//        .foreach(x => {
-//          val tpl_id = x._1
-//          val num = x._2.toList.size
-//          val rst = x._2.toList.toString.replaceAll("List", "").replace("(", "").replace(")", "")
-//
-//          val sqlProxy = new SqlProxy()
-//          val client = DataSourceUtil.getConnection
-//          try {
-//            sqlProxy.executeUpdate(client, "update `clip_tpl` set num=?,status=1,result=? where tpl_id = ?",
-//              Array(num, rst, tpl_id))
-//          }
-//          catch {
-//            case e: Exception => e.printStackTrace()
-//          } finally {
-//            sqlProxy.shutdown(client)
-//          }
-//
-//        })
+        .groupBy(str => {
+          val i = str.indexOf("tpl_id")
+          val tpl_id = str.substring(i + 9, i + 10)
+          tpl_id
+          //        JSON.parseObject(str).getString("tpl_id")
+        })
+        .foreach(x => {
+          val tpl_id = x._1
+          val num = x._2.toList.size
+          val rst = x._2.toList.toString.replaceAll("List", "").replace("(", "").replace(")", "")
+
+          val sqlProxy = new SqlProxy()
+          val client = DataSourceUtil.getConnection
+          try {
+            sqlProxy.executeUpdate(client, "update `clip_tpl` set num=?,status=1,result=? where tpl_id = ?",
+              Array(num, rst, tpl_id))
+          }
+          catch {
+            case e: Exception => e.printStackTrace()
+          } finally {
+            sqlProxy.shutdown(client)
+          }
+
+        })
 
       spark.close()
       logWarning("End")
