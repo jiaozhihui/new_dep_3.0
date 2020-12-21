@@ -63,7 +63,8 @@ object Editing_new2 extends Logging {
           |       maxT*1000 maxT,
           |       duration timeLong,
           |       total_duration totalLong,
-          |       seat_num
+          |       seat_num,
+          |       department
           |from clip_tpl_class
           |join clip_task
           |on clip_task.tpl_id=clip_tpl_class.tpl_id
@@ -113,6 +114,7 @@ object Editing_new2 extends Logging {
            |      join target
            |      on array_intersect(string_class3_list,arr)=arr
            |      where resourceId = 1
+           |      and department = department_id
            |      ) b
            |    where string_time_long >= minT
            |    and string_time_long <= maxT
@@ -132,6 +134,7 @@ object Editing_new2 extends Logging {
         |group by tpl_id,resolution)
         |where seat_num=count
         |""".stripMargin)
+//      .show(1000,false)
         .createOrReplaceTempView("resolution_target")
 
     spark.sql(
@@ -335,9 +338,6 @@ object Editing_new2 extends Logging {
 
       spark.close()
       logWarning("End")
-
-//      Thread.sleep(5000)
-//    }
 
   }
 }
