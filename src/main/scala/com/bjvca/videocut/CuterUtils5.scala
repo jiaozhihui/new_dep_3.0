@@ -15,6 +15,7 @@ object CuterUtils5 {
 
     val class3List = new JSONArray()
     val allTagTime = new JSONObject()
+    val class3Time = new JSONArray()
     val manList = new JSONArray()
     val objectList = new JSONArray()
     val actionList = new JSONArray()
@@ -55,6 +56,8 @@ object CuterUtils5 {
       val resolution = seat.resolution
       val frame = seat.frame
       val tagTime = seat.tagTime
+      val ad_seat_b_time = seat.ad_seat_b_time
+      val ad_seat_e_time = seat.ad_seat_e_time
 
       temp.put("string_vid", video_id)
       temp.put("media_name", media_name)
@@ -84,18 +87,22 @@ object CuterUtils5 {
       class_type_id match {
         case "4" =>
           manList.add(class3_name)
+          class3Time.add(class3_name + ":" + ad_seat_b_time + "_" + ad_seat_e_time)
           //          man2List.add(file9)
           //          manImgList.add(file10)
         case "1" =>
           objectList.add(class3_name)
+          class3Time.add(class3_name + ":" + ad_seat_b_time + "_" + ad_seat_e_time)
           //          object2List.add(file9)
           //          objectImgList.add(file10)
         case "3" =>
           actionList.add(class3_name)
+          class3Time.add(class3_name + ":" + ad_seat_b_time + "_" + ad_seat_e_time)
           //          action2List.add(file9)
           //          actionImgList.add(file10)
         case "2" =>
           senceList.add(class3_name)
+          class3Time.add(class3_name + ":" + ad_seat_b_time + "_" + ad_seat_e_time)
           //          sence2List.add(file9)
           //          senceImgList.add(file10)
       }
@@ -123,6 +130,7 @@ object CuterUtils5 {
     //    temp.put("string_sence_img_list", senceImgList)
 
     temp.put("allTagTime", allTagTime.toString)
+    temp.put("class3Time", class3Time.toString)
 
     var newBT = 0L
     if (minBTime-3000>0){

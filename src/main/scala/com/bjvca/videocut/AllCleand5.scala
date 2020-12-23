@@ -374,7 +374,7 @@ object AllCleand5 extends Logging {
         resultList
       })
       .flatMap(x => x._2)
-      .map(x => CuterUtils4.seatToJSON(x))
+      .map(x => CuterUtils5.seatToJSON(x))
       .filter(x => x.getInteger("string_time_long") >= 1000)
       .map(_.toString)
 
@@ -435,7 +435,8 @@ object AllCleand5 extends Logging {
         |             duration,
         |             confidence,
         |             CONCAT_WS('*',Width,Height) resolution,
-        |             frame
+        |             frame,
+        |             concat_ws('_',ad_seat_b_time,ad_seat_e_time) class3Time
         |      from (select recognition2_behavior.media_id   video_id,
         |                   kukai_videos.videoName           media_name,
         |                   recognition2_behavior.time_start ad_seat_b_time,
@@ -571,7 +572,8 @@ object AllCleand5 extends Logging {
         |       first(duration) duration,
         |       first(confidence) confidence,
         |       first(resolution) resolution,
-        |       first(frame) frame
+        |       first(frame) frame,
+        |       collect_set(class3Time) class3Time_tmp
         |from a01
         |group by a01.video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end
         |""".stripMargin)
@@ -597,23 +599,28 @@ object AllCleand5 extends Logging {
     // 取组内TOP10
     spark.sql(
       """
-        |select *
-        |from a2
-        |where class_type_id = 1 and rank <= 3
-        |union all
-        |select *
-        |from a2
-        |where class_type_id = 2 and rank <= 3
-        |union all
-        |select *
-        |from a2
-        |where class_type_id = 3 and rank <= 2
-        |union all
-        |select *
-        |from a2
-        |where class_type_id = 4 and rank <= 2
+        |select *,concat_ws(':',substr(class3_name,2),class3Time) classToTime
+        |from (
+        |   select video_id,media_name,drama_name,drama_type_name,media_area_name,class2_name,class_type_id,ad_seat_img,ad_seat_b_time,ad_seat_e_time,story_start,story_end,totaltime,class3_name,project_id,department_id,duration,confidence,resolution,frame,score,rank,explode(class3Time_tmp) class3Time
+        |   from (
+        |      select *
+        |      from a2
+        |      where class_type_id = 1 and rank <= 3
+        |      union all
+        |      select *
+        |      from a2
+        |      where class_type_id = 2 and rank <= 3
+        |      union all
+        |      select *
+        |      from a2
+        |      where class_type_id = 3 and rank <= 2
+        |      union all
+        |      select *
+        |      from a2
+        |      where class_type_id = 4 and rank <= 2) t1) t2
         |""".stripMargin)
       .createOrReplaceTempView("a3")
+//        .show(1000,false)
 
     // useful
     spark.sql(
@@ -632,11 +639,13 @@ object AllCleand5 extends Logging {
         |       concat_ws(',',collect_set(ad_seat_img)) as ad_seat_img,
         |       concat_ws(',',collect_set(class2_name)) as class2_name,
         |       first(resolution) resolution,
-        |       first(frame) frame
+        |       first(frame) frame,
+        |       concat_ws(',',collect_set(classToTime)) classToTime
         |FROM a3
         |GROUP BY drama_name,drama_type_name,video_id,media_area_name,story_start,story_end,media_name
         |""".stripMargin)
       .createOrReplaceTempView("a4")
+//        .show(1000,false)
 
     spark.sql(
       """
@@ -733,6 +742,7 @@ object AllCleand5 extends Logging {
         newObject.put("string_class_img_list", imglist)
         newObject.put("resolution", "1*1")
         newObject.put("frame", 1)
+        newObject.put("class3Time", new JSONArray().toString)
 
 
         newObject.put("resourceId", "2")
@@ -799,12 +809,14 @@ object AllCleand5 extends Logging {
         val class3_list = oldObject.getString("class3_name").split(',').toList
         val class_img_list = oldObject.getString("ad_seat_img").split(',').toList
         val class2_list = oldObject.getString("class2_name").split(',').toList
+        val classToTimeList = oldObject.getString("classToTime").split(',').toList
 
         val string_class3_list = new JSONArray()
         val manList = new JSONArray()
         val objectList = new JSONArray()
         val actionList = new JSONArray()
         val senceList = new JSONArray()
+        val class3Time = new JSONArray()
 
         val string_class_img_list = new JSONArray()
         val string_class2_list = new JSONArray()
@@ -840,6 +852,10 @@ object AllCleand5 extends Logging {
         for (i <- class2_list) {
           string_class2_list.add(i)
         }
+        for (i <- classToTimeList) {
+          class3Time.add(i)
+        }
+
 
         newObject.put("string_vid", string_vid)
         newObject.put("media_name", media_name)
@@ -861,6 +877,7 @@ object AllCleand5 extends Logging {
         newObject.put("string_class_img_list", string_class_img_list)
         newObject.put("resolution", resolution)
         newObject.put("frame", frame)
+        newObject.put("class3Time", class3Time.toString)
 
 
         newObject.put("resourceId", "2")
