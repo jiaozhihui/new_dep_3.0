@@ -122,7 +122,7 @@ object CuterUtils4 {
     //    temp.put("string_action_img_list", actionImgList)
     //    temp.put("string_sence_img_list", senceImgList)
 
-    temp.put("allTagTime", allTagTime)
+    temp.put("allTagTime", allTagTime.toString)
 
     var newBT = 0L
     if (minBTime-3000>0){
@@ -143,7 +143,7 @@ object CuterUtils4 {
       ratioObject.put(key.toString,(temp.getJSONObject("allTagTime").getString(key.toString).toLong/(maxETime - minBTime).toDouble).formatted("%.2f").toDouble)
       ratioObject
     }
-    temp.put("tagRatio",ratioObject)
+    temp.put("tagRatio",ratioObject.toString)
 
     temp
   }
