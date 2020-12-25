@@ -151,7 +151,7 @@ object CuterUtils5 {
       ratioObject.put(key.toString,(temp.getJSONObject("allTagTime").getString(key.toString).toLong/(maxETime - minBTime).toDouble).formatted("%.2f").toDouble)
       ratioObject
     }
-    temp.put("tagRatio",ratioObject.toString)
+    temp.put("tagRatio",ratioObject)
 
     temp
   }
