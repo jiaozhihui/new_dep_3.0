@@ -294,7 +294,7 @@ object AllCleand6 extends Logging {
         x.get(12).toString,
         x.get(13).toString + "*" + x.get(14).toString,
         x.get(15).asInstanceOf[Int],
-        (x.get(11).toString.toLong - x.get(10).toString.toLong)))
+        x.get(11).toString.toLong - x.get(10).toString.toLong))
 
       .map(x => {
         val videoID = x.video_id
