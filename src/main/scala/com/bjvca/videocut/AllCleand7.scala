@@ -377,7 +377,7 @@ object AllCleand6 extends Logging {
         resultList
       })
       .flatMap(x => x._2)
-      .map(x => CuterUtils5.seatToJSON(x))
+      .map(x => CuterUtils7.seatToJSON(x))
       .filter(x => x.getInteger("string_time_long") >= 1000)
       .map(_.toString)
 
