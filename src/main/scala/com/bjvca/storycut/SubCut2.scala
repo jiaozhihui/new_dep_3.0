@@ -11,6 +11,7 @@ import org.elasticsearch.spark._
 import util.control.Breaks._
 import java.util
 
+import com.bjvca.bean.{Story1, Story2}
 import com.bjvca.videocut.AllCleand5.logWarning
 
 import scala.collection.JavaConverters
@@ -833,23 +834,3 @@ object SubCut2 extends Logging {
   }
 
 }
-
-case class Story1(
-                   platform_id: String,
-                   project_id: String,
-                   media_id: String,
-                   story_start: Int,
-                   story_end: Int,
-                   class_id: List[Int],
-                   image: String
-                 )
-
-case class Story2(
-                   platform_id: String,
-                   project_id: String,
-                   media_id: String,
-                   story_start: Int,
-                   story_end: Int,
-                   timeLong: Int,
-                   image: String
-                 )

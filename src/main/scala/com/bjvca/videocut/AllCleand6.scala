@@ -1,6 +1,7 @@
 package com.bjvca.videocut
 
 import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
+import com.bjvca.bean.{Story1, Story2}
 import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -1119,22 +1120,3 @@ object AllCleand6 extends Logging {
 }
 
 
-case class Story1(
-                   platform_id: String,
-                   project_id: String,
-                   media_id: String,
-                   story_start: Int,
-                   story_end: Int,
-                   class_id: List[Int],
-                   image: String
-                 )
-
-case class Story2(
-                   platform_id: String,
-                   project_id: String,
-                   media_id: String,
-                   story_start: Int,
-                   story_end: Int,
-                   timeLong: Int,
-                   image: String
-                 )
