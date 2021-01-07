@@ -1030,7 +1030,7 @@ object AllCleand7 extends Logging {
         // 标签按字母顺序排序
         val list = string_class3_list.toArray.toList.sortWith((o1, o2) => {
           o1.toString > o2.toString
-        }).asInstanceOf[String]
+        })
 
         string_class3_list.clear()
         for (i <- list) {
