@@ -19,3 +19,14 @@ case class Story2(
                    timeLong: Int,
                    image: String
                  )
+
+case class Story3(
+                   platform_id: String,
+                   project_id: String,
+                   media_id: String,
+                   story_start: Int,
+                   story_end: Int,
+                   image: String,
+                   headHaveLines: Int,
+                   tailHaveLines: Int
+                 )

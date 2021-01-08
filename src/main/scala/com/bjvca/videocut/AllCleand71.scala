@@ -1,4 +1,4 @@
-package com.bjvca.storycut
+package com.bjvca.videocut
 
 import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
 import com.bjvca.bean.{Story1, Story2, Story3}
@@ -8,51 +8,75 @@ import org.apache.spark.sql.SparkSession
 import org.elasticsearch.spark._
 
 import scala.collection.JavaConverters
-
+import scala.collection.mutable.ListBuffer
 
 /**
- * 分镜头
+ * 新版分镜头逻辑
  * 加入OCR判断逻辑
  */
-object SubCut3 extends Logging {
+object AllCleand71 extends Logging {
 
   def main(args: Array[String]): Unit = {
 
 
-    logWarning("Demo开始运行")
-
+    logWarning("开始合成")
 
     val confUtil = new ConfUtils("application.conf")
+    //    val confUtil = new ConfUtils("线上application.conf")
 
     // 创建sparkSession
     val spark: SparkSession = SparkSession.builder()
       .appName("Demo")
       .master("local[*]")
       .config("es.net.proxy.http.use.system.props", "false")
-      .config("spark.debug.maxToStringFields", "200")
+      .config("spark.debug.maxToStringFields", "2000")
       .getOrCreate()
 
-    val sc = spark.sparkContext
-    import spark.implicits._
-
     // 0.读取任务表
-          spark.read.format("jdbc")
-            .options(Map(
-              "url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
-              "driver" -> "com.mysql.jdbc.Driver",
-              "user" -> confUtil.videocutMysqlUser,
-              "password" -> confUtil.videocutMysqlPassword,
-              "dbtable" -> "task"
-            ))
-            .load()
-            .where("status = 0")
-            .createOrReplaceTempView("task")
+    spark.read.format("jdbc")
+      .options(Map(
+        "url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
+        "driver" -> "com.mysql.jdbc.Driver",
+        "user" -> confUtil.videocutMysqlUser,
+        "password" -> confUtil.videocutMysqlPassword,
+        "dbtable" -> "task"
+      ))
+      .load()
+      .where("status = 0")
+      .createOrReplaceTempView("task")
 
     spark.sql("cache table task")
+
+    spark.sql(
+      """
+        |select *
+        |from task
+        |""".stripMargin)
+      .toJSON
+      .rdd
+      .foreach(str => {
+        val nObject = JSON.parseObject(str)
+        val vid = nObject.getString("video_id")
+
+        val sqlProxy = new SqlProxy()
+        val client = DataSourceUtil.getConnection
+        try {
+          sqlProxy.executeUpdate(client, "update task set status=-1 where video_id=?",
+            Array(vid))
+        }
+        catch {
+          case e: Exception => e.printStackTrace()
+        } finally {
+          sqlProxy.shutdown(client)
+        }
+      })
+
+    logWarning("更新task表状态为进行中")
 
     // 读取将要用到的表
     // 1.recognition2_behavior
     spark.read.format("jdbc")
+      //      .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/ssp_db?characterEncoding=utf-8&useSSL=false",
       .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
         "driver" -> "com.mysql.jdbc.Driver",
         "user" -> confUtil.videocutMysqlUser,
@@ -63,6 +87,7 @@ object SubCut3 extends Logging {
       .createOrReplaceTempView("recognition2_behavior")
     // 2.recognition2_face
     spark.read.format("jdbc")
+      //      .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/ssp_db?characterEncoding=utf-8&useSSL=false",
       .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
         "driver" -> "com.mysql.jdbc.Driver",
         "user" -> confUtil.videocutMysqlUser,
@@ -73,6 +98,7 @@ object SubCut3 extends Logging {
       .createOrReplaceTempView("recognition2_face")
     // 3.recognition2_object
     spark.read.format("jdbc")
+      //      .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/ssp_db?characterEncoding=utf-8&useSSL=false",
       .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
         "driver" -> "com.mysql.jdbc.Driver",
         "user" -> confUtil.videocutMysqlUser,
@@ -83,6 +109,7 @@ object SubCut3 extends Logging {
       .createOrReplaceTempView("recognition2_object")
     // 4.recognition2_scene
     spark.read.format("jdbc")
+      //      .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/ssp_db?characterEncoding=utf-8&useSSL=false",
       .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
         "driver" -> "com.mysql.jdbc.Driver",
         "user" -> confUtil.videocutMysqlUser,
@@ -93,6 +120,7 @@ object SubCut3 extends Logging {
       .createOrReplaceTempView("recognition2_scene")
     // 5.class
     spark.read.format("jdbc")
+      //      .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/ssp_db?characterEncoding=utf-8&useSSL=false",
       .options(Map(
         "url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
         "driver" -> "com.mysql.jdbc.Driver",
@@ -105,6 +133,7 @@ object SubCut3 extends Logging {
 
     // 6.kukai_videos
     spark.read.format("jdbc")
+      //      .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/ssp_db?characterEncoding=utf-8&useSSL=false",
       .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
         "driver" -> "com.mysql.jdbc.Driver",
         "user" -> confUtil.videocutMysqlUser,
@@ -125,6 +154,7 @@ object SubCut3 extends Logging {
       .load()
       .createOrReplaceTempView("recognition2_videostory")
 
+
     // 8.OCR
     spark.read.format("jdbc")
       .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
@@ -136,6 +166,270 @@ object SubCut3 extends Logging {
       .load()
       .createOrReplaceTempView("recognition2_ocr")
 
+    //    join task
+    //      on task.video_id = media_id
+    // 1.拿到所有的广告位 aaa
+    spark.sql(
+      """
+        |select recognition2_behavior.media_id video_id,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
+        |       kukai_videos.videoName media_name,
+        |       recognition2_behavior.time_start ad_seat_b_time,
+        |       recognition2_behavior.time_end ad_seat_e_time,
+        |       kukai_videos.category drama_name,
+        |       kukai_videos.classify drama_type_name,
+        |       kukai_videos.area media_area_name,
+        |       recognition2_class.class1_name class2_name,
+        |       recognition2_class.class_type class_type_id,
+        |       recognition2_class.class2_name class3_name,
+        |       recognition2_behavior.object_img ad_seat_img
+        |from recognition2_behavior
+        |join recognition2_class
+        |    on recognition2_behavior.class_id = recognition2_class.class_id
+        |join kukai_videos
+        |on kukai_videos.videoId = media_id
+        |join task
+        |on task.video_id = media_id
+        |union all
+        |select recognition2_face.media_id video_id,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
+        |       kukai_videos.videoName media_name,
+        |       recognition2_face.time_start ad_seat_b_time,
+        |       recognition2_face.time_end ad_seat_e_time,
+        |       kukai_videos.category drama_name,
+        |       kukai_videos.classify drama_type_name,
+        |       kukai_videos.area media_area_name,
+        |       recognition2_class.class1_name class2_name,
+        |       recognition2_class.class_type class_type_id,
+        |       recognition2_class.class2_name class3_name,
+        |       recognition2_face.object_img ad_seat_img
+        |from recognition2_face
+        |join recognition2_class
+        |    on recognition2_face.class_id = recognition2_class.class_id
+        |join kukai_videos
+        |on kukai_videos.videoId = media_id
+        |join task
+        |on task.video_id = media_id
+        |union all
+        |select recognition2_object.media_id video_id,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
+        |       kukai_videos.videoName media_name,
+        |       recognition2_object.time_start ad_seat_b_time,
+        |       recognition2_object.time_end ad_seat_e_time,
+        |       kukai_videos.category drama_name,
+        |       kukai_videos.classify drama_type_name,
+        |       kukai_videos.area media_area_name,
+        |       recognition2_class.class1_name class2_name,
+        |       recognition2_class.class_type class_type_id,
+        |       recognition2_class.class2_name class3_name,
+        |       recognition2_object.object_img ad_seat_img
+        |from recognition2_object
+        |join recognition2_class
+        |    on recognition2_object.class_id = recognition2_class.class_id
+        |join kukai_videos
+        |on kukai_videos.videoId = media_id
+        |join task
+        |on task.video_id = media_id
+        |union all
+        |select recognition2_scene.media_id video_id,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
+        |       kukai_videos.videoName media_name,
+        |       recognition2_scene.time_start ad_seat_b_time,
+        |       recognition2_scene.time_end ad_seat_e_time,
+        |       kukai_videos.category drama_name,
+        |       kukai_videos.classify drama_type_name,
+        |       kukai_videos.area media_area_name,
+        |       recognition2_class.class1_name class2_name,
+        |       recognition2_class.class_type class_type_id,
+        |       recognition2_class.class2_name class3_name,
+        |       recognition2_scene.object_img ad_seat_img
+        |from recognition2_scene
+        |join recognition2_class
+        |    on recognition2_scene.class_id = recognition2_class.class_id
+        |join kukai_videos
+        |on kukai_videos.videoId = media_id
+        |join task
+        |on task.video_id = media_id
+        |""".stripMargin)
+      //      .filter(s"video_id = $video_id")
+      .createOrReplaceTempView("aaa")
+
+
+    spark.sql(
+      """
+        |select
+        |aaa.video_id,
+        |aaa.project_id,
+        |aaa.department_id,
+        |aaa.media_name,
+        |aaa.drama_name,
+        |aaa.drama_type_name,
+        |aaa.media_area_name,
+        |aaa.class2_name,
+        |aaa.class_type_id,
+        |aaa.class3_name,
+        |aaa.ad_seat_b_time,
+        |aaa.ad_seat_e_time,
+        |aaa.ad_seat_img,
+        |kukai_videos.videoWidth Width,
+        |kukai_videos.videoHeight Height,
+        |kukai_videos.frame frame
+        |from aaa join kukai_videos
+        |on aaa.video_id=kukai_videos.videoId
+        |""".stripMargin)
+      .createOrReplaceTempView("ccc")
+
+    spark.sql("cache table ccc")
+
+
+    /**
+     * Cleaned2 多标签合成
+     */
+    val rst = spark.sql("select * from ccc")
+      .rdd
+      .map(x => AdSeat4(
+        x.get(0).toString,
+        x.get(1).toString,
+        x.get(2).toString,
+        x.get(3).toString,
+        x.get(4).toString,
+        x.get(5).toString,
+        x.get(6).toString,
+        x.get(7).toString,
+        x.get(8).toString,
+        x.get(9).toString,
+        x.get(10).toString,
+        x.get(11).toString,
+        x.get(12).toString,
+        x.get(13).toString + "*" + x.get(14).toString,
+        x.get(15).asInstanceOf[Int],
+        x.get(11).toString.toLong - x.get(10).toString.toLong))
+
+      .map(x => {
+        val videoID = x.video_id
+        val class3Name = x.class3_name
+        ((videoID, class3Name), x)
+      })
+      .groupByKey()
+
+      /**
+       * 间隔十秒内的相同标签都合并
+       */
+      .mapValues(x => {
+
+        // 转换成数组然后排序
+        val seatSorted = x.toList.sortBy(_.ad_seat_b_time.toLong)
+
+        var temp: AdSeat4 = seatSorted.head
+        val result = scala.collection.mutable.ListBuffer[AdSeat4]()
+
+        for (i <- 1 until seatSorted.size) {
+
+          val thisSeat = seatSorted(i)
+
+          if (thisSeat.ad_seat_b_time.toLong - temp.ad_seat_e_time.toLong <= 3000) {
+            // 合并广告位，然后继续等待下一个标签
+            temp = temp.copy(ad_seat_e_time = thisSeat.ad_seat_e_time,tagTime = thisSeat.tagTime + temp.tagTime)
+          } else {
+            // 不合并，输出已有的广告位
+            result.append(temp.copy())
+            temp = thisSeat
+          }
+
+        }
+        result.append(temp)
+        result
+      })
+      .flatMap(_._2)
+      .map(x => {
+        (x.video_id, x)
+      })
+
+      /**
+       * 核心逻辑
+       *
+       * 间隔10秒内的标签都组合
+       */
+      .groupByKey()
+      .mapValues(x => {
+        val seatSorted = x.toList.sortBy(_.ad_seat_b_time.toLong)
+
+        // 最终返回的数据resultList
+        val resultList = ListBuffer[ListBuffer[AdSeat4]]()
+        val temp = new ListBuffer[AdSeat4]()
+
+        temp.append(seatSorted.head)
+
+        var maxETime: String = seatSorted.head.ad_seat_e_time
+
+        // 遍历所有point点，进而增加或减少tempMap中的adseat，进而处理成新片段
+        for (i <- 1 until seatSorted.size) {
+          val thisSeat = seatSorted(i)
+
+          if (thisSeat.ad_seat_b_time.toLong - maxETime.toLong <= 10000) {
+            temp.append(thisSeat)
+            maxETime = Math.max(thisSeat.ad_seat_b_time.toLong, maxETime.toLong).toString
+          } else {
+            resultList.append(temp.clone())
+
+            temp.clear()
+            temp.append(thisSeat)
+            maxETime = thisSeat.ad_seat_e_time
+          }
+        }
+
+        resultList.append(temp.clone())
+
+        // 最终返回resultList
+        resultList
+      })
+      .flatMap(x => x._2)
+      .map(x => CuterUtils7.seatToJSON(x))
+      .filter(x => x.getInteger("string_time_long") >= 1000)
+      .map(_.toString)
+
+    //       多标签写入ES库
+    rst.saveJsonToEs("video_wave/doc", Map(
+      "es.index.auto.create" -> "true",
+      "es.nodes" -> confUtil.adxStreamingEsHost,
+      "es.port" -> "9200"
+    ))
+
+    logWarning("多标签存入ES成功")
+
+    rst.groupBy(str => {
+      JSON.parseObject(str).getString("string_vid")
+    }).foreach(x => {
+      val vid = x._1
+      val fragment = x._2.toList.size
+
+      val sqlProxy = new SqlProxy()
+      val client = DataSourceUtil.getConnection
+      try {
+        sqlProxy.executeUpdate(client, "update task set fragment=fragment + ?,total=total+?,status=1 where video_id=?",
+          Array(fragment, fragment, vid))
+      }
+      catch {
+        case e: Exception => e.printStackTrace()
+      } finally {
+        sqlProxy.shutdown(client)
+      }
+
+    })
+
+    logWarning("更新task表片段2数量成功")
+
+
+    /**
+     * 分镜头处理
+     */
+
+    val sc = spark.sparkContext
+    import spark.implicits._
 
     // lastStory:存储上一个片段
     var lastStory1 = Story1("", "", "", 0, 0, List(0), "")
@@ -190,7 +484,7 @@ object SubCut3 extends Logging {
         |group by media_id, story_start, story_end
         |order by media_id,story_start
         |""".stripMargin)
-//                          .show(1000,false)
+      //                          .show(1000,false)
 
       .rdd
       // 封装样例类Story
@@ -224,7 +518,7 @@ object SubCut3 extends Logging {
 
     // 第一步完成
     val firstDF = JavaConverters.asScalaIteratorConverter(value1.iterator).asScala.toSeq.toDS.filter(_.story_end != 0).select("platform_id", "project_id", "media_id", "story_start", "story_end", "image")
-//        firstDF.show(1000, truncate = false)
+    //        firstDF.show(1000, truncate = false)
 
 
     firstDF.createOrReplaceTempView("firstDF")
@@ -234,7 +528,7 @@ object SubCut3 extends Logging {
         |select *, story_end - story_start timeLong
         |from firstDF
         |""".stripMargin)
-//              .show(1000,false)
+      //              .show(1000,false)
       .rdd
       .map(row => Story2(
         row.getString(0),
@@ -264,36 +558,37 @@ object SubCut3 extends Logging {
 
     // 第二步完成
     val secondDF = JavaConverters.asScalaIteratorConverter(value2.iterator).asScala.toSeq.toDS.filter(_.story_end != 0)
-//      .select("platform_id","project_id","media_id","story_start","story_end","image")
-//    secondDF.createOrReplaceTempView("secondDF")
-//        secondDF.show(1000, false)
+    //      .select("platform_id","project_id","media_id","story_start","story_end","image")
+    //    secondDF.createOrReplaceTempView("secondDF")
+    //        secondDF.show(1000, false)
 
 
 
     secondDF.coalesce(1)
-        .foreach(thisStory => {
-          if (thisStory.timeLong < 20000){
-            // 放入缓存区
-            lastStory3 = thisStory
+      .foreach(thisStory => {
+        if (thisStory.timeLong < 20000){
+          // 放入缓存区
+          lastStory3 = thisStory
+        } else {
+          // 判断缓存区有无数据，有则连接并加入，并清空缓存区，无则加入本条数据到结果
+          if (lastStory3.story_end == 1){
+            // 无数据
+            storyList3.add(thisStory)
           } else {
-            // 判断缓存区有无数据，有则连接并加入，并清空缓存区，无则加入本条数据到结果
-            if (lastStory3.story_end == 1){
-              // 无数据
-              storyList3.add(thisStory)
-            } else {
-              // 有数据
-              lastStory3 = lastStory3.copy(media_id = thisStory.media_id,story_end = thisStory.story_end,timeLong = thisStory.story_end - lastStory3.story_start)
-              storyList3.add(lastStory3)
-              lastStory3 = lastStory3.copy(media_id = "",platform_id = "",project_id = "",story_start = 0,story_end = 1,timeLong = 0,image = "")
-            }
+            // 有数据
+            lastStory3 = lastStory3.copy(media_id = thisStory.media_id,story_end = thisStory.story_end,timeLong = thisStory.story_end - lastStory3.story_start)
+            storyList3.add(lastStory3)
+            lastStory3 = lastStory3.copy(media_id = "",platform_id = "",project_id = "",story_start = 0,story_end = 1,timeLong = 0,image = "")
           }
-        })
+        }
+      })
 
     val value3 = storyList3.value
 
     // 第三步完成
     val thirdDF = JavaConverters.asScalaIteratorConverter(value3.iterator).asScala.toSeq.toDS.filter(_.story_end != 1).select("platform_id","project_id","media_id","story_start","story_end","image")
     thirdDF.createOrReplaceTempView("thirddf")
+
 
     // 添加headHaveLines,tailHaveLines字段,用于判断每个片段是头和尾是否有台词
     spark.sql(
@@ -317,7 +612,7 @@ object SubCut3 extends Logging {
         |       and recognition2_ocr.lines_end > thirddf.story_start) t1
         |group by platform_id,project_id,media_id,story_start,story_end,image
         |""".stripMargin)
-//        .show(1000,false)
+      //        .show(1000,false)
       .map(row => Story3(
         row.getString(0),
         row.getString(1),
@@ -328,29 +623,30 @@ object SubCut3 extends Logging {
         row.getInt(6),
         row.getInt(7)
       ))
-        .coalesce(1)
-        .foreach(thisStory => {
-          if (thisStory.headHaveLines == 0){
+      .coalesce(1)
+      .foreach(thisStory => {
+        if (thisStory.headHaveLines == 0){
+          // 输出缓存区,把thisStory放入缓存区
+          storyList4.add(lastStory4)
+          lastStory4 = thisStory
+        } else {
+          if (lastStory4.tailHaveLines == 1){
+            // 修改lastStory4.story_end = thisStory.story_end,head,tail
+            lastStory4 = lastStory4.copy(media_id = thisStory.media_id,story_end = thisStory.story_end,headHaveLines = thisStory.headHaveLines,tailHaveLines = thisStory.tailHaveLines)
+          } else {
             // 输出缓存区,把thisStory放入缓存区
             storyList4.add(lastStory4)
             lastStory4 = thisStory
-          } else {
-            if (lastStory4.tailHaveLines == 1){
-              // 修改lastStory4.story_end = thisStory.story_end,head,tail
-              lastStory4 = lastStory4.copy(media_id = thisStory.media_id,story_end = thisStory.story_end,headHaveLines = thisStory.headHaveLines,tailHaveLines = thisStory.tailHaveLines)
-            } else {
-              // 输出缓存区,把thisStory放入缓存区
-              storyList4.add(lastStory4)
-              lastStory4 = thisStory
-            }
           }
-        })
+        }
+      })
 
     val value4 = storyList4.value
 
     val fourthDF = JavaConverters.asScalaIteratorConverter(value4.iterator).asScala.toSeq.toDS.filter(_.story_end != 1).select("platform_id","project_id","media_id","story_start","story_end","image")
     fourthDF.createOrReplaceTempView("fourthdf")
-//            .show(1000,false)
+    //            .show(1000,false)
+
 
 
 
@@ -498,7 +794,7 @@ object SubCut3 extends Logging {
         |           where ad_seat_b_time >= story_start
         |              and ad_seat_e_time <= story_end
         |""".stripMargin)
-//        .show(1000,false)
+      //        .show(1000,false)
       .createOrReplaceTempView("a0")
 
     spark.sql(
@@ -803,6 +1099,15 @@ object SubCut3 extends Logging {
           class3Time.add(i)
         }
 
+        // 标签按字母顺序排序
+        val list = string_class3_list.toArray.toList.sortWith((o1, o2) => {
+          o1.toString > o2.toString
+        })
+
+        string_class3_list.clear()
+        for (i <- list) {
+          string_class3_list.add(i)
+        }
 
         newObject.put("string_vid", string_vid)
         newObject.put("media_name", media_name)
@@ -894,8 +1199,8 @@ object SubCut3 extends Logging {
 
 
     spark.close()
-
-
   }
-
 }
+
+
+
