@@ -153,6 +153,7 @@ object CuterUtils8 {
 
     temp.put("string_time", newBT + "_" + (maxETime+4000))
     temp.put("b_t", minBTime)
+    temp.put("e_t", maxETime)
     temp.put("string_time_long", maxETime+4000 - newBT)
 
     temp.put("resourceId", "1")

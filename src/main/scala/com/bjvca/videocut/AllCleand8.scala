@@ -391,7 +391,7 @@ object AllCleand8 extends Logging {
         resultList
       })
       .flatMap(x => x._2)
-      .map(x => CuterUtils7.seatToJSON(x))
+      .map(x => CuterUtils8.seatToJSON(x))
       .filter(x => x.getInteger("string_time_long") >= 1000)
       .map(_.toString)
 
@@ -976,6 +976,7 @@ object AllCleand8 extends Logging {
         newObject.put("string_drama_type_name", string_drama_type_name)
         newObject.put("string_media_area_name", string_media_area_name)
         newObject.put("b_t", string_time.split('_').head.toLong)
+        newObject.put("e_t", string_time.split('_').last.toLong)
         newObject.put("string_time", string_time)
         newObject.put("string_time_long", string_time_long)
         newObject.put("string_class3_list", new JSONArray())
@@ -1122,6 +1123,7 @@ object AllCleand8 extends Logging {
         newObject.put("string_media_area_name", string_media_area_name)
         newObject.put("string_time", string_time)
         newObject.put("b_t", string_time.split('_').head.toLong)
+        newObject.put("e_t", string_time.split('_').last.toLong)
         newObject.put("string_time_long", string_time_long)
         newObject.put("string_class3_list", string_class3_list)
         newObject.put("string_class3", string_class3_list.toString)
