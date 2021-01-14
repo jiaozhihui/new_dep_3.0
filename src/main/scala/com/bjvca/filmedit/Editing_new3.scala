@@ -602,8 +602,6 @@ object Editing_new3 extends Logging {
       })
 
 
-    spark.sql("uncache table clip_task_sig")
-    spark.sql("uncache table clip_task_mul")
 
     spark.close()
     logWarning("End")
