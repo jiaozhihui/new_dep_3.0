@@ -183,14 +183,17 @@ object Editing_new3 extends Logging {
     //group by (tpl_id,pid),求sum(string_time_long),where sum >= totalLong
     spark.sql(
       """
-        |select tpl_id,pid,sum(string_time_long) sumLong,first(totalLong) totalLong
-        |from pid_ed
-        |group by tpl_id,pid
+        |select tpl_id,ppid
+        |from (
+        |  select tpl_id,pid ppid,sum(string_time_long) sumLong,first(totalLong) totalLong
+        |  from pid_ed
+        |  group by tpl_id,pid) t1
+        |where sumLong >= totalLong
         |""".stripMargin)
-      .where("sumLong >= totalLong")
-      .select("tpl_id", "pid")
       .createOrReplaceTempView("pid_target")
 //          .show(1000, false)
+
+    spark.sql("cache table pid_target")
 
     // pid_ed join pid_target
     val rst_sig = spark.sql(
@@ -209,7 +212,7 @@ object Editing_new3 extends Logging {
         |from pid_ed
         |join pid_target
         |where pid_ed.tpl_id = pid_target.tpl_id
-        |and pid_ed.pid = pid_target.pid
+        |and pid_ed.pid = pid_target.ppid
         |""".stripMargin)
 
 //              .show(1000,false)
