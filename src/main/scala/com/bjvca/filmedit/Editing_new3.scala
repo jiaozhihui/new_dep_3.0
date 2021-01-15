@@ -214,6 +214,7 @@ object Editing_new3 extends Logging {
         |where pid_ed.tpl_id = pid_target.tpl_id
         |and pid_ed.pid = pid_target.ppid
         |""".stripMargin)
+    rst_sig.createOrReplaceTempView("rst_sig")
 
 //              .show(1000,false)
 
@@ -268,7 +269,20 @@ object Editing_new3 extends Logging {
         }
       })
 
-    rst_sig.groupBy("tpl_id").max("pid").select("tpl_id","max(pid)").createOrReplaceTempView("numTab")
+    // 得到num
+    spark.sql(
+      """
+        |select tpl_id,count(tpl_id) num
+        |from (
+        | select tpl_id,pid
+        | from rst_sig
+        | group by tpl_id,pid) t1
+        |group by tpl_id
+        |""".stripMargin)
+        .createOrReplaceTempView("numTab")
+//        .show(1000,false)
+
+//    rst_sig.groupBy("tpl_id").max("pid").select("tpl_id","max(pid)").createOrReplaceTempView("numTab")
 
     spark.sql(
       """
@@ -280,7 +294,7 @@ object Editing_new3 extends Logging {
       .foreach(str => {
         val nObject = JSON.parseObject(str)
         val tpl_id = nObject.getString("tpl_id")
-        val num = nObject.getString("max(pid)")
+        val num = nObject.getString("num")
 
         val sqlProxy = new SqlProxy()
         val client = DataSourceUtil.getConnection
