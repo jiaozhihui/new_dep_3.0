@@ -152,15 +152,16 @@ object Editing_new3 extends Logging {
       // 加pid
       searched.coalesce(1)
       .map(row => {
-        cur_timeLong += row.getInt(4)
         if (last_tpl == row.getInt(0) && cur_timeLong < row.getInt(5)) {
+          cur_timeLong += row.getInt(4)
         } else {
           if (last_tpl != row.getInt(0)) {
             pid = 0
+            last_tpl = row.getInt(0)
+          } else {
+            pid += 1
+            cur_timeLong = row.getInt(4)
           }
-          pid += 1
-          last_tpl = row.getInt(0)
-          cur_timeLong = 0
         }
         Film(
           row.getInt(0),
