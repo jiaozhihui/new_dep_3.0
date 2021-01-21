@@ -145,16 +145,16 @@ object CuterUtils8 {
     temp.put("class3Time", class3Time.toString)
 
     var newBT = 0L
-    if (minBTime-3000>0){
+    if (minBTime>0){
       newBT = minBTime-3000
     } else {
       newBT = 0
     }
 
-    temp.put("string_time", newBT + "_" + (maxETime+4000))
+    temp.put("string_time", newBT + "_" + (maxETime))
     temp.put("b_t", minBTime)
     temp.put("e_t", maxETime)
-    temp.put("string_time_long", maxETime+4000 - newBT)
+    temp.put("string_time_long", maxETime - newBT)
 
     temp.put("resourceId", "1")
 

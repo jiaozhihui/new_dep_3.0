@@ -334,7 +334,7 @@ object AllCleand8 extends Logging {
 
           val thisSeat = seatSorted(i)
 
-          if (thisSeat.ad_seat_b_time.toLong - temp.ad_seat_e_time.toLong <= 3000) {
+          if (thisSeat.ad_seat_b_time.toLong - temp.ad_seat_e_time.toLong <= 2000) {
             // 合并广告位，然后继续等待下一个标签
             temp = temp.copy(ad_seat_e_time = thisSeat.ad_seat_e_time,tagTime = thisSeat.tagTime + temp.tagTime)
           } else {
@@ -373,7 +373,7 @@ object AllCleand8 extends Logging {
         for (i <- 1 until seatSorted.size) {
           val thisSeat = seatSorted(i)
 
-          if (thisSeat.ad_seat_b_time.toLong - maxETime.toLong <= 10000) {
+          if (thisSeat.ad_seat_b_time.toLong - maxETime.toLong <= 0) {
             temp.append(thisSeat)
             maxETime = Math.max(thisSeat.ad_seat_b_time.toLong, maxETime.toLong).toString
           } else {
@@ -507,7 +507,7 @@ object AllCleand8 extends Logging {
        * thisStory.class_id
        */
       .foreach(thisStory => {
-        if (thisStory.class_id.intersect(lastStory1.class_id).nonEmpty && thisStory.media_id == lastStory1.media_id) {
+        if (thisStory.class_id.intersect(lastStory1.class_id).nonEmpty && thisStory.media_id == lastStory1.media_id && thisStory.story_start - lastStory1.story_end < 1500) {
           // 有交集
           lastStory1 = lastStory1.copy(story_end = thisStory.story_end, class_id = thisStory.class_id)
         } else {
@@ -544,7 +544,7 @@ object AllCleand8 extends Logging {
       ))
       .coalesce(1)
       .foreach(thisStory => {
-        if (thisStory.timeLong < 20000 ) {
+        if (thisStory.timeLong < 30000 ) {
           if (lastStory2.story_end == thisStory.story_start) {
             lastStory2 = lastStory2.copy(media_id = thisStory.media_id, story_end = thisStory.story_end, timeLong = lastStory2.timeLong + thisStory.timeLong)
           } else {
@@ -560,37 +560,36 @@ object AllCleand8 extends Logging {
     val value2 = storyList2.value
 
     // 第二步完成
-    val secondDF = JavaConverters.asScalaIteratorConverter(value2.iterator).asScala.toSeq.toDS.filter(_.story_end != 0)
-    //      .select("platform_id","project_id","media_id","story_start","story_end","image")
-    //    secondDF.createOrReplaceTempView("secondDF")
+    val thirdDF = JavaConverters.asScalaIteratorConverter(value2.iterator).asScala.toSeq.toDS.filter(_.story_end != 0).select("platform_id","project_id","media_id","story_start","story_end","image")
+    thirdDF.createOrReplaceTempView("thirddf")
     //        secondDF.show(1000, false)
 
 
 
-    secondDF.coalesce(1)
-      .foreach(thisStory => {
-        if (thisStory.timeLong < 20000){
-          // 放入缓存区
-          lastStory3 = thisStory
-        } else {
-          // 判断缓存区有无数据，有则连接并加入，并清空缓存区，无则加入本条数据到结果
-          if (lastStory3.story_end == 1){
-            // 无数据
-            storyList3.add(thisStory)
-          } else {
-            // 有数据
-            lastStory3 = lastStory3.copy(media_id = thisStory.media_id,story_end = thisStory.story_end,timeLong = thisStory.story_end - lastStory3.story_start)
-            storyList3.add(lastStory3)
-            lastStory3 = lastStory3.copy(media_id = "",platform_id = "",project_id = "",story_start = 0,story_end = 1,timeLong = 0,image = "")
-          }
-        }
-      })
-
-    val value3 = storyList3.value
-
-    // 第三步完成
-    val thirdDF = JavaConverters.asScalaIteratorConverter(value3.iterator).asScala.toSeq.toDS.filter(_.story_end != 1).select("platform_id","project_id","media_id","story_start","story_end","image")
-    thirdDF.createOrReplaceTempView("thirddf")
+//    secondDF.coalesce(1)
+//      .foreach(thisStory => {
+//        if (thisStory.timeLong < 20000){
+//          // 放入缓存区
+//          lastStory3 = thisStory
+//        } else {
+//          // 判断缓存区有无数据，有则连接并加入，并清空缓存区，无则加入本条数据到结果
+//          if (lastStory3.story_end == 1){
+//            // 无数据
+//            storyList3.add(thisStory)
+//          } else {
+//            // 有数据
+//            lastStory3 = lastStory3.copy(media_id = thisStory.media_id,story_end = thisStory.story_end,timeLong = thisStory.story_end - lastStory3.story_start)
+//            storyList3.add(lastStory3)
+//            lastStory3 = lastStory3.copy(media_id = "",platform_id = "",project_id = "",story_start = 0,story_end = 1,timeLong = 0,image = "")
+//          }
+//        }
+//      })
+//
+//    val value3 = storyList3.value
+//
+//    // 第三步完成
+//    val thirdDF = JavaConverters.asScalaIteratorConverter(value3.iterator).asScala.toSeq.toDS.filter(_.story_end != 1).select("platform_id","project_id","media_id","story_start","story_end","image")
+//    thirdDF.createOrReplaceTempView("thirddf")
 
 
     // 添加headHaveLines,tailHaveLines字段,用于判断每个片段是头和尾是否有台词
