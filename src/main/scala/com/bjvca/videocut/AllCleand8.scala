@@ -507,7 +507,7 @@ object AllCleand8 extends Logging {
        * thisStory.class_id
        */
       .foreach(thisStory => {
-        if (thisStory.class_id.intersect(lastStory1.class_id).nonEmpty && thisStory.media_id == lastStory1.media_id && thisStory.story_start - lastStory1.story_end < 1500) {
+        if (thisStory.class_id.intersect(lastStory1.class_id).nonEmpty && thisStory.media_id == lastStory1.media_id && thisStory.story_start - lastStory1.story_end < 3000) {
           // 有交集
           lastStory1 = lastStory1.copy(story_end = thisStory.story_end, class_id = thisStory.class_id)
         } else {
@@ -544,7 +544,7 @@ object AllCleand8 extends Logging {
       ))
       .coalesce(1)
       .foreach(thisStory => {
-        if (thisStory.timeLong < 30000 ) {
+        if (thisStory.timeLong < 20000 ) {
           if (lastStory2.story_end == thisStory.story_start) {
             lastStory2 = lastStory2.copy(media_id = thisStory.media_id, story_end = thisStory.story_end, timeLong = lastStory2.timeLong + thisStory.timeLong)
           } else {
