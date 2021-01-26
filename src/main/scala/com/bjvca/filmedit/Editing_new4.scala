@@ -11,7 +11,7 @@ import org.apache.spark.sql.SparkSession
 
 
 /**
- * +单标签位的模板化剪辑
+ * +台词搜索过滤，未测试
  */
 
 object Editing_new4 extends Logging {
