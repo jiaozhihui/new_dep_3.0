@@ -71,6 +71,9 @@ object Editing_new4 extends Logging {
     TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
       confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "clip_tpl_class", "clip_tpl_class")
 
+    TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
+      confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "recognition2_ocr", "recognition2_ocr")
+
     // 加载Es中所有片段信息
     TableRegister.registEsTable(spark, confUtil.adxStreamingEsHost, "9200",
       confUtil.adxStreamingEsUser, confUtil.adxStreamingEsPassword, confUtil.adxStreamingEsIndex, "video_wave")
@@ -84,6 +87,7 @@ object Editing_new4 extends Logging {
         |select clip_tpl_class.tpl_id tpl_id,
         |       label_id,
         |       split(class3_name,',') as arr,
+        |       ocr,
         |       minT*1000 minT,
         |       maxT*1000 maxT,
         |       total_duration_min totalLong,
@@ -101,15 +105,18 @@ object Editing_new4 extends Logging {
     var pid = 1
 
     // 搜索(根据限制条件关联mysql和ES),挑选时长符合的片段
-    val searched = spark.sql(
+    spark.sql(
       s"""
          |select t3.tpl_id,
          |       label_id,
          |       media_name,
          |       string_class3_list,
+         |       ocr,
          |       string_time_long,
          |       totalLong,
          |       string_time,
+         |       substr(string_time,1,instr(string_time,'_')-1) bT,
+         |       substr(string_time,instr(string_time,'_')+1) eT,
          |       resolution,
          |       project_id,
          |       string_vid,
@@ -125,6 +132,7 @@ object Editing_new4 extends Logging {
          |             string_vid,
          |             media_name,
          |             arr string_class3_list,
+         |             ocr,
          |             string_time_long,
          |             string_time,
          |             video_wave.resolution,
@@ -145,12 +153,38 @@ object Editing_new4 extends Logging {
          |    and string_time_long <= maxT
          |    order by tpl_id,label_id) t2) t3
          |""".stripMargin)
+              .createOrReplaceTempView("search1")
+//                    .show(1050,false)
 
-      //        .createOrReplaceTempView("search")
-      //              .show(1000,false)
+    // 加台词过滤
+    val searched = spark.sql(
+      """
+        |select search1.tpl_id,
+        |       search1.label_id,
+        |       search1.media_name,
+        |       search1.string_class3_list,
+        |       search1.string_time_long,
+        |       search1.totalLong,
+        |       search1.string_time,
+        |       search1.resolution,
+        |       search1.project_id,
+        |       search1.string_vid,
+        |       search1.string_class_img_list,
+        |       search1.seat_num
+        |from search1
+        |join recognition2_ocr
+        |on search1.string_vid = recognition2_ocr.media_id
+        |and search1.project_id = recognition2_ocr.project_id
+        |and search1.bT < recognition2_ocr.lines_start
+        |and search1.eT > recognition2_ocr.lines_end
+        |and OCR_content like CONCAT('%',ocr,'%')
+        |group by tpl_id,label_id,media_name,string_class3_list,string_time_long,totalLong,string_time,resolution,search1.project_id,string_vid,string_class_img_list,seat_num
+        |""".stripMargin)
+//      .createOrReplaceTempView("search")
+//        .show(1050,false)
 
-      // 加pid
-      searched.coalesce(1)
+    // 加pid
+    searched.coalesce(1)
       .map(row => {
         if (last_tpl == row.getInt(0) && cur_timeLong < row.getInt(5)) {
           cur_timeLong += row.getInt(4)
@@ -179,7 +213,7 @@ object Editing_new4 extends Logging {
         )
       })
       .createOrReplaceTempView("pid_ed")
-//          .show(1000,false)
+    //          .show(1000,false)
 
     //group by (tpl_id,pid),求sum(string_time_long),where sum >= totalLong
     spark.sql(
@@ -336,6 +370,8 @@ object Editing_new4 extends Logging {
       })
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
     /**
      * 多标签位合成逻辑
@@ -347,6 +383,7 @@ object Editing_new4 extends Logging {
         |select clip_tpl_class.tpl_id tpl_id,
         |       label_id,
         |       split(class3_name,',') as arr,
+        |       ocr,
         |       minT*1000 minT,
         |       maxT*1000 maxT,
         |       duration timeLong,
@@ -368,8 +405,11 @@ object Editing_new4 extends Logging {
          |       string_vid,
          |       media_name,
          |       string_class3_list,
+         |       ocr,
          |       string_time_long,
          |       string_time,
+         |       substr(string_time,1,instr(string_time,'_')-1) bT,
+         |       substr(string_time,instr(string_time,'_')+1) eT,
          |       resolution,
          |       frame,
          |       timeLong,
@@ -387,6 +427,7 @@ object Editing_new4 extends Logging {
          |             string_vid,
          |             media_name,
          |             arr string_class3_list,
+         |             ocr,
          |             string_time_long,
          |             string_time,
          |             video_wave.resolution,
@@ -408,8 +449,36 @@ object Editing_new4 extends Logging {
          |    and string_time_long <= maxT
          |    order by tpl_id,label_id) t2) t3
          |""".stripMargin)
-      .createOrReplaceTempView("ranked")
+      .createOrReplaceTempView("search1")
     //              .show(1000,false)
+
+    // 加台词过滤
+    spark.sql(
+      """
+        |select search1.tpl_id,
+        |       search1.label_id,
+        |       search1.media_name,
+        |       search1.string_class3_list,
+        |       search1.string_time_long,
+        |       search1.totalLong,
+        |       search1.string_time,
+        |       search1.resolution,
+        |       search1.project_id,
+        |       search1.string_vid,
+        |       search1.string_class_img_list,
+        |       search1.seat_num,
+        |       search1.timeLong
+        |from search1
+        |join recognition2_ocr
+        |on search1.string_vid = recognition2_ocr.media_id
+        |and search1.project_id = recognition2_ocr.project_id
+        |and search1.bT < recognition2_ocr.lines_start
+        |and search1.eT > recognition2_ocr.lines_end
+        |and OCR_content like CONCAT('%',ocr,'%')
+        |group by tpl_id,label_id,media_name,string_class3_list,string_time_long,totalLong,string_time,resolution,search1.project_id,string_vid,string_class_img_list,seat_num,timeLong
+        |""".stripMargin)
+          .createOrReplaceTempView("ranked")
+    //        .show(1050,false)
 
     spark.udf.register("arr_size", (s: scala.collection.mutable.WrappedArray[String]) => s.size)
 
