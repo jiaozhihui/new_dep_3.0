@@ -12,7 +12,7 @@ import scala.collection.mutable.ListBuffer
  */
 object CuterUtils8 {
 
-  def seatToJSON(seats: ListBuffer[AdSeat4]): JSONObject = {
+  def seatToJSON(seats: ListBuffer[AdSeat8]): JSONObject = {
 
     val temp = new JSONObject()
 
@@ -61,12 +61,14 @@ object CuterUtils8 {
       val tagTime = seat.tagTime
       val ad_seat_b_time = seat.ad_seat_b_time
       val ad_seat_e_time = seat.ad_seat_e_time
+      val year = seat.year
 
       temp.put("string_vid", video_id)
       temp.put("media_name", media_name)
       temp.put("string_drama_name", drama_name)
       temp.put("string_drama_type_name", drama_type_name)
       temp.put("string_media_area_name", media_area_name)
+      temp.put("year", year)
 //      temp.put("string_media_release_date", media_release_date)
       temp.put("department_id", department_id)
       temp.put("project_id", project_id)

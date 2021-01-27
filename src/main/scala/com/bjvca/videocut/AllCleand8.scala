@@ -280,7 +280,8 @@ object AllCleand8 extends Logging {
         |aaa.ad_seat_img,
         |kukai_videos.videoWidth Width,
         |kukai_videos.videoHeight Height,
-        |kukai_videos.frame frame
+        |kukai_videos.frame frame,
+        |kukai_videos.year year
         |from aaa join kukai_videos
         |on aaa.video_id=kukai_videos.videoId
         |""".stripMargin)
@@ -294,7 +295,7 @@ object AllCleand8 extends Logging {
      */
     val rst = spark.sql("select * from ccc")
       .rdd
-      .map(x => AdSeat4(
+      .map(x => AdSeat8(
         x.get(0).toString,
         x.get(1).toString,
         x.get(2).toString,
@@ -310,7 +311,8 @@ object AllCleand8 extends Logging {
         x.get(12).toString,
         x.get(13).toString + "*" + x.get(14).toString,
         x.get(15).asInstanceOf[Int],
-        x.get(11).toString.toLong - x.get(10).toString.toLong))
+        x.get(11).toString.toLong - x.get(10).toString.toLong,
+        x.get(16).toString))
 
       .map(x => {
         val videoID = x.video_id
@@ -327,8 +329,8 @@ object AllCleand8 extends Logging {
         // 转换成数组然后排序
         val seatSorted = x.toList.sortBy(_.ad_seat_b_time.toLong)
 
-        var temp: AdSeat4 = seatSorted.head
-        val result = scala.collection.mutable.ListBuffer[AdSeat4]()
+        var temp: AdSeat8 = seatSorted.head
+        val result = scala.collection.mutable.ListBuffer[AdSeat8]()
 
         for (i <- 1 until seatSorted.size) {
 
@@ -362,8 +364,8 @@ object AllCleand8 extends Logging {
         val seatSorted = x.toList.sortBy(_.ad_seat_b_time.toLong)
 
         // 最终返回的数据resultList
-        val resultList = ListBuffer[ListBuffer[AdSeat4]]()
-        val temp = new ListBuffer[AdSeat4]()
+        val resultList = ListBuffer[ListBuffer[AdSeat8]]()
+        val temp = new ListBuffer[AdSeat8]()
 
         temp.append(seatSorted.head)
 
@@ -413,7 +415,7 @@ object AllCleand8 extends Logging {
       val sqlProxy = new SqlProxy()
       val client = DataSourceUtil.getConnection
       try {
-        sqlProxy.executeUpdate(client, "update task set fragment=fragment + ?,total=total+?,status=1 where video_id=?",
+        sqlProxy.executeUpdate(client, "update task set fragment=fragment + ?,total=total+? where video_id=?",
           Array(fragment, fragment, vid))
       }
       catch {
@@ -680,7 +682,8 @@ object AllCleand8 extends Logging {
         |             confidence,
         |             CONCAT_WS('*',Width,Height) resolution,
         |             frame,
-        |             concat_ws('_',ad_seat_b_time,ad_seat_e_time) class3Time
+        |             concat_ws('_',ad_seat_b_time,ad_seat_e_time) class3Time,
+        |             year
         |      from (select recognition2_behavior.media_id   video_id,
         |                   kukai_videos.videoName           media_name,
         |                   recognition2_behavior.time_start ad_seat_b_time,
@@ -700,7 +703,8 @@ object AllCleand8 extends Logging {
         |                   recognition2_behavior.score confidence,
         |                   kukai_videos.videoWidth Width,
         |                   kukai_videos.videoHeight Height,
-        |                   kukai_videos.frame frame
+        |                   kukai_videos.frame frame,
+        |                   kukai_videos.year year
         |            from recognition2_behavior
         |                     join recognition2_class
         |                          on recognition2_behavior.class_id = recognition2_class.class_id
@@ -728,7 +732,8 @@ object AllCleand8 extends Logging {
         |                   recognition2_face.score confidence,
         |                   kukai_videos.videoWidth Width,
         |                   kukai_videos.videoHeight Height,
-        |                   kukai_videos.frame frame
+        |                   kukai_videos.frame frame,
+        |                   kukai_videos.year year
         |            from recognition2_face
         |                     join recognition2_class
         |                          on recognition2_face.class_id = recognition2_class.class_id
@@ -756,7 +761,8 @@ object AllCleand8 extends Logging {
         |                   recognition2_object.score confidence,
         |                   kukai_videos.videoWidth Width,
         |                   kukai_videos.videoHeight Height,
-        |                   kukai_videos.frame frame
+        |                   kukai_videos.frame frame,
+        |                   kukai_videos.year year
         |            from recognition2_object
         |                     join recognition2_class
         |                          on recognition2_object.class_id = recognition2_class.class_id
@@ -784,7 +790,8 @@ object AllCleand8 extends Logging {
         |                   recognition2_scene.score confidence,
         |                   kukai_videos.videoWidth Width,
         |                   kukai_videos.videoHeight Height,
-        |                   kukai_videos.frame frame
+        |                   kukai_videos.frame frame,
+        |                   kukai_videos.year year
         |            from recognition2_scene
         |                     join recognition2_class
         |                          on recognition2_scene.class_id = recognition2_class.class_id
@@ -818,9 +825,10 @@ object AllCleand8 extends Logging {
         |       first(confidence) confidence,
         |       first(resolution) resolution,
         |       first(frame) frame,
-        |       collect_set(class3Time) class3Time_tmp
+        |       collect_set(class3Time) class3Time_tmp,
+        |       year
         |from a01
-        |group by a01.video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end
+        |group by a01.video_id, media_name, drama_name, drama_type_name, class2_name, media_area_name, class_type_id, class3_name, story_start, story_end, year
         |""".stripMargin)
       .createOrReplaceTempView("a1")
 
@@ -846,7 +854,7 @@ object AllCleand8 extends Logging {
       """
         |select *,concat_ws(':',substr(class3_name,2),class3Time) classToTime
         |from (
-        |   select video_id,media_name,drama_name,drama_type_name,media_area_name,class2_name,class_type_id,ad_seat_img,ad_seat_b_time,ad_seat_e_time,story_start,story_end,totaltime,class3_name,project_id,department_id,duration,confidence,resolution,frame,score,rank,explode(class3Time_tmp) class3Time
+        |   select video_id,media_name,drama_name,drama_type_name,media_area_name,class2_name,class_type_id,ad_seat_img,ad_seat_b_time,ad_seat_e_time,story_start,story_end,totaltime,class3_name,project_id,department_id,duration,confidence,resolution,frame,score,rank,explode(class3Time_tmp) class3Time,year
         |   from (
         |      select *
         |      from a2
@@ -877,6 +885,7 @@ object AllCleand8 extends Logging {
         |       first(department_id) department_id,
         |       video_id string_vid,
         |       media_area_name string_media_area_name,
+        |       year,
         |       story_end - story_start string_time_long,
         |       media_name,
         |       concat_ws(',',collect_set(class_type_id)) as class_type_id,
@@ -887,7 +896,7 @@ object AllCleand8 extends Logging {
         |       first(frame) frame,
         |       concat_ws(',',collect_set(classToTime)) classToTime
         |FROM a3
-        |GROUP BY drama_name,drama_type_name,video_id,media_area_name,story_start,story_end,media_name
+        |GROUP BY drama_name,drama_type_name,video_id,media_area_name,story_start,story_end,media_name,year
         |""".stripMargin)
       .createOrReplaceTempView("a4")
     //        .show(1000,false)
@@ -930,7 +939,8 @@ object AllCleand8 extends Logging {
         |       kukai_videos.videoName  media_name,
         |       kukai_videos.albumId  project_id,
         |       kukai_videos.department_id  department_id,
-        |       fourthDF.image image
+        |       fourthDF.image image,
+        |       kukai_videos.year year
         |from useless
         |left join fourthDF
         |on useless.media_id=fourthDF.media_id
@@ -960,6 +970,7 @@ object AllCleand8 extends Logging {
         val department_id = oldObject.getString("department_id")
         val string_vid = oldObject.getString("string_vid")
         val string_media_area_name = oldObject.getString("string_media_area_name")
+        val year = oldObject.getString("year")
         val string_time_long = oldObject.getInteger("string_time_long")
         val media_name = oldObject.getString("media_name")
         val image = oldObject.getString("image")
@@ -974,6 +985,7 @@ object AllCleand8 extends Logging {
         newObject.put("string_drama_name", string_drama_name)
         newObject.put("string_drama_type_name", string_drama_type_name)
         newObject.put("string_media_area_name", string_media_area_name)
+        newObject.put("year", year)
         newObject.put("b_t", string_time.split('_').head.toLong)
         newObject.put("e_t", string_time.split('_').last.toLong)
         newObject.put("string_time", string_time)
@@ -1016,7 +1028,7 @@ object AllCleand8 extends Logging {
       val sqlProxy = new SqlProxy()
       val client = DataSourceUtil.getConnection
       try {
-        sqlProxy.executeUpdate(client, "update `task` set story=?,total=total+?,status=1 where video_id = ?",
+        sqlProxy.executeUpdate(client, "update `task` set story=?,total=total+? where video_id = ?",
           Array(storyNum, storyNum, vid))
       }
       catch {
@@ -1048,6 +1060,7 @@ object AllCleand8 extends Logging {
         val department_id = oldObject.getString("department_id")
         val string_vid = oldObject.getString("string_vid")
         val string_media_area_name = oldObject.getString("string_media_area_name")
+        val year = oldObject.getString("year")
         val string_time_long = oldObject.getInteger("string_time_long")
         val media_name = oldObject.getString("media_name")
         val resolution = oldObject.getString("resolution")
@@ -1120,6 +1133,7 @@ object AllCleand8 extends Logging {
         newObject.put("string_drama_name", string_drama_name)
         newObject.put("string_drama_type_name", string_drama_type_name)
         newObject.put("string_media_area_name", string_media_area_name)
+        newObject.put("year", year)
         newObject.put("string_time", string_time)
         newObject.put("b_t", string_time.split('_').head.toLong)
         newObject.put("e_t", string_time.split('_').last.toLong)
@@ -1164,7 +1178,7 @@ object AllCleand8 extends Logging {
       val sqlProxy = new SqlProxy()
       val client = DataSourceUtil.getConnection
       try {
-        sqlProxy.executeUpdate(client, "update `task` set story=story+?,total=total+?,status=1 where video_id = ?",
+        sqlProxy.executeUpdate(client, "update `task` set story=story+?,total=total+? where video_id = ?",
           Array(storyNum, storyNum, vid))
       }
       catch {
