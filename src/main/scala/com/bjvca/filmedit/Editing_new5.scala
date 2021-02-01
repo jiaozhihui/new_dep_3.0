@@ -11,7 +11,7 @@ import org.apache.spark.sql.SparkSession
 
 
 /**
- * +台词搜索过滤，未测试
+ * 卡点搜索,未测试
  */
 
 object Editing_new5 extends Logging {
@@ -29,7 +29,7 @@ object Editing_new5 extends Logging {
       .set("es.mapping.date.rich", "false") //日期富类型
       // es
       .set("es.read.field.as.array.include", "true")
-      .set("es.read.field.as.array.include", "string_class3_list,string_class_img_list") //数组
+      .set("es.read.field.as.array.include", "string_class_img_list") //数组
 
     val spark = SparkSession.builder.config(conf).getOrCreate()
 
@@ -45,6 +45,7 @@ object Editing_new5 extends Logging {
         "dbtable" -> "clip_tpl"
       ))
       .load()
+      .where("isPoint = 1")
       .where("status = 0")
       .where("seat_num = 1")
       .createOrReplaceTempView("clip_task_sig")
@@ -59,6 +60,7 @@ object Editing_new5 extends Logging {
         "dbtable" -> "clip_tpl"
       ))
       .load()
+      .where("isPoint = 1")
       .where("status = 0")
       .where("seat_num != 1")
       .createOrReplaceTempView("clip_task_mul")
@@ -74,9 +76,128 @@ object Editing_new5 extends Logging {
     TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
       confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "recognition2_ocr", "recognition2_ocr")
 
-    // 加载Es中所有片段信息
-    TableRegister.registEsTable(spark, confUtil.adxStreamingEsHost, "9200",
-      confUtil.adxStreamingEsUser, confUtil.adxStreamingEsPassword, confUtil.adxStreamingEsIndex, "video_wave")
+    TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
+      confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "recognition2_behavior", "recognition2_behavior")
+
+    TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
+      confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "recognition2_face", "recognition2_face")
+
+    TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
+      confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "recognition2_scene", "recognition2_scene")
+
+    TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
+      confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "recognition2_object", "recognition2_object")
+
+    TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
+      confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "recognition2_class", "recognition2_class")
+
+    TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
+      confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "kukai_videos", "kukai_videos")
+
+    spark.sql(
+      """
+        |select recognition2_behavior.media_id string_vid,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
+        |       kukai_videos.videoName media_name,
+        |       recognition2_behavior.time_start ad_seat_b_time,
+        |       recognition2_behavior.time_end ad_seat_e_time,
+        |       recognition2_behavior.time_end - recognition2_behavior.time_start string_time_long,
+        |       concat_ws('_', recognition2_behavior.time_start, recognition2_behavior.time_end) string_time,
+        |       concat_ws('*', videoWidth, videoHeight) resolution,
+        |       frame,
+        |       kukai_videos.category string_drama_name,
+        |       kukai_videos.classify string_drama_type_name,
+        |       kukai_videos.area string_media_area_name,
+        |       kukai_videos.year year,
+        |       recognition2_class.class1_name class2_name,
+        |       recognition2_class.class_type class_type_id,
+        |       recognition2_class.class2_name string_class3_list,
+        |       recognition2_behavior.object_img string_class_img_list
+        |from recognition2_behavior
+        |join recognition2_class
+        |    on recognition2_behavior.class_id = recognition2_class.class_id
+        |join kukai_videos
+        |on kukai_videos.videoId = media_id
+        |union all
+        |select recognition2_face.media_id string_vid,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
+        |       kukai_videos.videoName media_name,
+        |       recognition2_face.time_start ad_seat_b_time,
+        |       recognition2_face.time_end ad_seat_e_time,
+        |       recognition2_face.time_end - recognition2_face.time_start string_time_long,
+        |       concat_ws('_', recognition2_face.time_start, recognition2_face.time_end) string_time,
+        |       concat_ws('*', videoWidth, videoHeight) resolution,
+        |       frame,
+        |       kukai_videos.category string_drama_name,
+        |       kukai_videos.classify string_drama_type_name,
+        |       kukai_videos.area string_media_area_name,
+        |       kukai_videos.year year,
+        |       recognition2_class.class1_name class2_name,
+        |       recognition2_class.class_type class_type_id,
+        |       recognition2_class.class2_name string_class3_list,
+        |       recognition2_face.object_img string_class_img_list
+        |from recognition2_face
+        |join recognition2_class
+        |    on recognition2_face.class_id = recognition2_class.class_id
+        |join kukai_videos
+        |on kukai_videos.videoId = media_id
+        |union all
+        |select recognition2_object.media_id string_vid,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
+        |       kukai_videos.videoName media_name,
+        |       recognition2_object.time_start ad_seat_b_time,
+        |       recognition2_object.time_end ad_seat_e_time,
+        |       recognition2_object.time_end - recognition2_object.time_start string_time_long,
+        |       concat_ws('_', recognition2_object.time_start, recognition2_object.time_end) string_time,
+        |       concat_ws('*', videoWidth, videoHeight) resolution,
+        |       frame,
+        |       kukai_videos.category string_drama_name,
+        |       kukai_videos.classify string_drama_type_name,
+        |       kukai_videos.area string_media_area_name,
+        |       kukai_videos.year year,
+        |       recognition2_class.class1_name class2_name,
+        |       recognition2_class.class_type class_type_id,
+        |       recognition2_class.class2_name string_class3_list,
+        |       recognition2_object.object_img string_class_img_list
+        |from recognition2_object
+        |join recognition2_class
+        |    on recognition2_object.class_id = recognition2_class.class_id
+        |join kukai_videos
+        |on kukai_videos.videoId = media_id
+        |union all
+        |select recognition2_scene.media_id string_vid,
+        |       kukai_videos.albumId project_id,
+        |       kukai_videos.department_id department_id,
+        |       kukai_videos.videoName media_name,
+        |       recognition2_scene.time_start ad_seat_b_time,
+        |       recognition2_scene.time_end ad_seat_e_time,
+        |       recognition2_scene.time_end - recognition2_scene.time_start string_time_long,
+        |       concat_ws('_', recognition2_scene.time_start, recognition2_scene.time_end) string_time,
+        |       concat_ws('*', videoWidth, videoHeight) resolution,
+        |       frame,
+        |       kukai_videos.category string_drama_name,
+        |       kukai_videos.classify string_drama_type_name,
+        |       kukai_videos.area string_media_area_name,
+        |       kukai_videos.year year,
+        |       recognition2_class.class1_name class2_name,
+        |       recognition2_class.class_type class_type_id,
+        |       recognition2_class.class2_name string_class3_list,
+        |       recognition2_scene.object_img string_class_img_list
+        |from recognition2_scene
+        |join recognition2_class
+        |    on recognition2_scene.class_id = recognition2_class.class_id
+        |join kukai_videos
+        |on kukai_videos.videoId = media_id
+        |""".stripMargin)
+        .createOrReplaceTempView("video_wave")
+
+
+//    // 加载Es中所有片段信息
+//    TableRegister.registEsTable(spark, confUtil.adxStreamingEsHost, "9200",
+//      confUtil.adxStreamingEsUser, confUtil.adxStreamingEsPassword, confUtil.adxStreamingEsIndex, "video_wave")
 
 
     /**
@@ -86,13 +207,18 @@ object Editing_new5 extends Logging {
       """
         |select clip_tpl_class.tpl_id tpl_id,
         |       label_id,
-        |       split(class3_name,',') as arr,
+        |       class3_name arr,
         |       ocr,
         |       minT*1000 minT,
         |       maxT*1000 maxT,
         |       total_duration_min totalLong,
         |       seat_num,
-        |       department
+        |       department,
+        |       videoName,
+        |       category,
+        |       area,
+        |       year,
+        |       classify
         |from clip_tpl_class
         |join clip_task_sig
         |on clip_task_sig.tpl_id=clip_tpl_class.tpl_id
@@ -145,8 +271,12 @@ object Editing_new5 extends Logging {
          |             maxT
          |      from video_wave
          |      join target_sig
-         |      on array_intersect(string_class3_list,arr)=arr
-         |      where resourceId = 1
+         |      on string_class3_list=arr
+         |      and video_wave.media_name rlike target_sig.videoName
+         |      and video_wave.string_media_area_name rlike target_sig.area
+         |      and video_wave.string_drama_type_name rlike target_sig.classify
+         |      and video_wave.string_drama_name rlike target_sig.category
+         |      and video_wave.year rlike target_sig.year
          |      and department = department_id
          |      ) b
          |    where string_time_long >= minT
@@ -382,14 +512,19 @@ object Editing_new5 extends Logging {
       """
         |select clip_tpl_class.tpl_id tpl_id,
         |       label_id,
-        |       split(class3_name,',') as arr,
+        |       class3_name arr,
         |       ocr,
         |       minT*1000 minT,
         |       maxT*1000 maxT,
         |       duration timeLong,
         |       total_duration totalLong,
         |       seat_num,
-        |       department
+        |       department,
+        |       videoName,
+        |       category,
+        |       area,
+        |       year,
+        |       classify
         |from clip_tpl_class
         |join clip_task_mul
         |on clip_task_mul.tpl_id=clip_tpl_class.tpl_id
@@ -441,9 +576,13 @@ object Editing_new5 extends Logging {
          |             maxT
          |      from video_wave
          |      join target_mul
-         |      on array_intersect(string_class3_list,arr)=arr
-         |      where resourceId = 1
-         |      and department = department_id
+         |      on string_class3_list=arr
+         |      and video_wave.media_name rlike target_mul.videoName
+         |      and video_wave.string_media_area_name rlike target_mul.area
+         |      and video_wave.string_drama_type_name rlike target_mul.classify
+         |      and video_wave.string_drama_name rlike target_mul.category
+         |      and video_wave.year rlike target_mul.year
+         |      where department = department_id
          |      ) b
          |    where string_time_long >= minT
          |    and string_time_long <= maxT

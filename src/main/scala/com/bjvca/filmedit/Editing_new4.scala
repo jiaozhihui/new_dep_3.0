@@ -47,6 +47,7 @@ object Editing_new4 extends Logging {
       .load()
       .where("status = 0")
       .where("seat_num = 1")
+      .where("isPoint = 0")
       .createOrReplaceTempView("clip_task_sig")
 
     // (多标签)读取mysql主表作为任务表
@@ -61,6 +62,7 @@ object Editing_new4 extends Logging {
       .load()
       .where("status = 0")
       .where("seat_num != 1")
+      .where("isPoint = 0")
       .createOrReplaceTempView("clip_task_mul")
 
     spark.sql("cache table clip_task_sig")
@@ -92,7 +94,12 @@ object Editing_new4 extends Logging {
         |       maxT*1000 maxT,
         |       total_duration_min totalLong,
         |       seat_num,
-        |       department
+        |       department,
+        |       videoName,
+        |       category,
+        |       area,
+        |       year,
+        |       classify
         |from clip_tpl_class
         |join clip_task_sig
         |on clip_task_sig.tpl_id=clip_tpl_class.tpl_id
@@ -146,6 +153,11 @@ object Editing_new4 extends Logging {
          |      from video_wave
          |      join target_sig
          |      on array_intersect(string_class3_list,arr)=arr
+         |      and video_wave.media_name rlike target_sig.videoName
+         |      and video_wave.string_media_area_name rlike target_sig.area
+         |      and video_wave.string_drama_type_name rlike target_sig.classify
+         |      and video_wave.string_drama_name rlike target_sig.category
+         |      and video_wave.year rlike target_sig.year
          |      where resourceId = 1
          |      and department = department_id
          |      ) b
@@ -389,7 +401,12 @@ object Editing_new4 extends Logging {
         |       duration timeLong,
         |       total_duration totalLong,
         |       seat_num,
-        |       department
+        |       department,
+        |       videoName,
+        |       category,
+        |       area,
+        |       year,
+        |       classify
         |from clip_tpl_class
         |join clip_task_mul
         |on clip_task_mul.tpl_id=clip_tpl_class.tpl_id
@@ -442,6 +459,11 @@ object Editing_new4 extends Logging {
          |      from video_wave
          |      join target_mul
          |      on array_intersect(string_class3_list,arr)=arr
+         |      and video_wave.media_name rlike target_mul.videoName
+         |      and video_wave.string_media_area_name rlike target_mul.area
+         |      and video_wave.string_drama_type_name rlike target_mul.classify
+         |      and video_wave.string_drama_name rlike target_mul.category
+         |      and video_wave.year rlike target_mul.year
          |      where resourceId = 1
          |      and department = department_id
          |      ) b
