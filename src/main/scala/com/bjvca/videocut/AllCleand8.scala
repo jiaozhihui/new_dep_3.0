@@ -8,9 +8,10 @@ import com.bjvca.bean.{Story1, Story2, Story3}
 import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.util.AccumulatorV2
 import org.elasticsearch.spark._
 
-import scala.collection.JavaConverters
+import scala.collection.{JavaConverters, mutable}
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -438,9 +439,12 @@ object AllCleand8 extends Logging {
 
     // lastStory:存储上一个片段
     var lastStory1 = Story1("", "", "", 0, 0, List(0), "")
+    val accStory1 = sc.collectionAccumulator[Story1]("lastStory1")
     var lastStory2 = Story2("", "", "", 0, 1, 0, "")
+    val accStory2 = sc.collectionAccumulator[Story2]("lastStory2")
     var lastStory3 = Story2("", "", "", 0, 1, 0, "")
     var lastStory4 = Story3("", "", "", 0, 1, "", 0, 0)
+    val accStory4 = sc.collectionAccumulator[Story3]("lastStory4")
 
     // storyList:存储最终合成出来的分镜头
     val storyList1 = sc.collectionAccumulator[Story1]("rst1")
@@ -508,16 +512,24 @@ object AllCleand8 extends Logging {
        * 核心处理逻辑
        * thisStory.class_id
        */
+
       .foreach(thisStory => {
         if (thisStory.class_id.intersect(lastStory1.class_id).nonEmpty && thisStory.media_id == lastStory1.media_id && thisStory.story_start - lastStory1.story_end < 3000) {
           // 有交集
           lastStory1 = lastStory1.copy(story_end = thisStory.story_end, class_id = thisStory.class_id)
+          accStory1.reset()
+          accStory1.add(lastStory1)
         } else {
           // 无交集
           storyList1.add(lastStory1)
           lastStory1 = thisStory
+          accStory1.reset()
+          accStory1.add(lastStory1)
         }
       })
+    if (!accStory1.value.isEmpty) {
+      storyList1.add(accStory1.value.toArray().head.asInstanceOf[Story1])
+    }
 
     val value1 = storyList1.value
 
@@ -549,8 +561,12 @@ object AllCleand8 extends Logging {
         if (thisStory.timeLong < 20000 ) {
           if (lastStory2.story_end == thisStory.story_start) {
             lastStory2 = lastStory2.copy(media_id = thisStory.media_id, story_end = thisStory.story_end, timeLong = lastStory2.timeLong + thisStory.timeLong)
+            accStory2.reset()
+            accStory2.add(lastStory2)
           } else {
             lastStory2 = thisStory
+            accStory2.reset()
+            accStory2.add(lastStory2)
           }
         } else {
           if (lastStory2.story_end == thisStory.story_start) {
@@ -559,6 +575,10 @@ object AllCleand8 extends Logging {
           storyList2.add(thisStory)
         }
       })
+    if (!accStory2.value.isEmpty) {
+      storyList2.add(accStory2.value.toArray().head.asInstanceOf[Story2])
+    }
+
     val value2 = storyList2.value
 
     // 第二步完成
@@ -586,6 +606,10 @@ object AllCleand8 extends Logging {
 //          }
 //        }
 //      })
+//
+//    if (lastStory3.platform_id != ""){
+//      storyList3.add(lastStory3)
+//    }
 //
 //    val value3 = storyList3.value
 //
@@ -628,22 +652,32 @@ object AllCleand8 extends Logging {
         row.getInt(7)
       ))
       .coalesce(1)
+
       .foreach(thisStory => {
         if (thisStory.headHaveLines == 0){
           // 输出缓存区,把thisStory放入缓存区
           storyList4.add(lastStory4)
           lastStory4 = thisStory
+          accStory4.reset()
+          accStory4.add(lastStory4)
         } else {
           if (lastStory4.tailHaveLines == 1){
             // 修改lastStory4.story_end = thisStory.story_end,head,tail
             lastStory4 = lastStory4.copy(media_id = thisStory.media_id,story_end = thisStory.story_end,headHaveLines = thisStory.headHaveLines,tailHaveLines = thisStory.tailHaveLines)
+            accStory4.reset()
+            accStory4.add(lastStory4)
           } else {
             // 输出缓存区,把thisStory放入缓存区
             storyList4.add(lastStory4)
             lastStory4 = thisStory
+            accStory4.reset()
+            accStory4.add(lastStory4)
           }
         }
       })
+    if (!accStory4.value.isEmpty) {
+      storyList4.add(accStory4.value.toArray().head.asInstanceOf[Story3])
+    }
 
     val value4 = storyList4.value
 
