@@ -271,7 +271,7 @@ object Editing_new5 extends Logging {
          |             maxT
          |      from video_wave
          |      join target_sig
-         |      on string_class3_list=arr
+         |      on string_class3_list like CONCAT('%',arr,'%')
          |      and video_wave.media_name rlike target_sig.videoName
          |      and video_wave.string_media_area_name rlike target_sig.area
          |      and video_wave.string_drama_type_name rlike target_sig.classify
