@@ -86,216 +86,225 @@ object ocrPoint extends Logging {
 //        |from clip_task_sig
 //        |""".stripMargin).show(1000,false)
 
-    val searched = spark.sql(
-      """
-        |select tpl_id,
-        |       videoName,
-        |       concat_ws('_', lines_start, lines_end) string_time,
-        |       lines_end - lines_start string_time_long,
-        |       media_id string_vid,
-        |       project_id,
-        |       total_duration_min*1000 totalLong
-        |from recognition2_ocr
-        |join kukai_videos
-        |on videoId = media_id
-        |join clip_task_sig
-        |on recognition2_ocr.OCR_content rlike clip_task_sig.ocr_arr
-        |and department_id = 3
-        |""".stripMargin)
-//        .createOrReplaceTempView("rst")
-//        .show(1000,false)
-
-    var last_tpl = 0
-    var cur_timeLong = 0
-    var pid = 1
-
-    searched.coalesce(1)
-      .map(row => {
-        if (last_tpl == row.getInt(0) && cur_timeLong < row.getInt(6)) {
-          cur_timeLong += row.getInt(3)
-        } else {
-          if (last_tpl != row.getInt(0)) {
-            pid = 0
-            last_tpl = row.getInt(0)
-          } else {
-            pid += 1
-            cur_timeLong = row.getInt(3)
-          }
-        }
-        Film(
-          row.getInt(0),
-          "label0",
-          row.getString(1),
-          null,
-          row.getInt(3),
-          row.getInt(6),
-          row.getString(2),
-          "1280*720",
-          row.getString(5),
-          row.getString(4),
-          null,
-          pid
-        )
-      })
-//      .show(1000,false)
-      .createOrReplaceTempView("pid_ed")
-
-
-
-    //group by (tpl_id,pid),求sum(string_time_long),where sum >= totalLong
-    spark.sql(
-      """
-        |select tpl_id,ppid
-        |from (
-        |  select tpl_id,pid ppid,sum(string_time_long) sumLong,first(totalLong) totalLong
-        |  from pid_ed
-        |  group by tpl_id,pid) t1
-        |where sumLong >= totalLong
-        |""".stripMargin)
-      .createOrReplaceTempView("pid_target")
-    //          .show(1000, false)
-
-    spark.sql("cache table pid_target")
-
-    // pid_ed join pid_target
-    val rst_sig = spark.sql(
-      """
-        |select pid_ed.tpl_id tpl_id,
-        |       label_id,
-        |       pid_ed.pid,
-        |       media_name,
-        |       resolution,
-        |       string_class3_list,
-        |       string_class_img_list,
-        |       string_time,
-        |       string_time_long,
-        |       string_vid,
-        |       project_id
-        |from pid_ed
-        |join pid_target
-        |where pid_ed.tpl_id = pid_target.tpl_id
-        |and pid_ed.pid = pid_target.ppid
-        |""".stripMargin)
-    rst_sig.createOrReplaceTempView("rst_sig")
-
-    //              .show(1000,false)
-
-    // 存入mysql
-    rst_sig.foreachPartition(iterator => {
-
-      var conn: Connection = null
-      var ps: PreparedStatement = null
-
-      try {
-        conn = DriverManager.getConnection("jdbc:mysql://vcasltdb.mysql.rds.aliyuncs.com:3306/video_wave?serverTimezone=GMT%2B8", "video_cut_user", "Slt_2020")
-        conn.setAutoCommit(false)
-
-        ps = conn.prepareStatement(
-          """INSERT INTO clip_tpl_result(`id`,`tpl_id`,`label_id`,`pid`,`media_name`,`resolution`,`string_class3_list`,`string_class_img_list`,`string_time`,`string_time_long`,`string_vid`,`create_time`,`project_id`)
-            |VALUES(null,?,?,?,?,?,?,?,?,?,?,null,?)
-            |""".stripMargin)
-        var row = 0
-        iterator.foreach(it => {
-          ps.setInt(1, it.getAs[Int]("tpl_id"))
-          ps.setString(2, it.getAs[String]("label_id"))
-          ps.setInt(3, it.getAs[Int]("pid"))
-          ps.setString(4, it.getAs[String]("media_name"))
-          ps.setString(5, it.getAs[String]("resolution"))
-          ps.setString(6, it.getAs[String]("string_class3_list"))
-          ps.setString(7, it.getAs[String]("string_class_img_list"))
-          ps.setString(8, it.getAs[String]("string_time"))
-          ps.setInt(9, it.getAs[Int]("string_time_long"))
-          ps.setString(10, it.getAs[String]("string_vid"))
-          ps.setString(11, it.getAs[String]("project_id"))
-
-          ps.addBatch()
-          row = row + 1
-          if (row % 1000 == 0) {
-            ps.executeBatch()
-            row = 0
-          }
-        })
-        if (row > 0)
-          ps.executeBatch()
-        conn.commit()
-
-      } catch {
-        case e: Exception => e.printStackTrace()
-      } finally {
-        if (ps != null) {
-          ps.close()
-        }
-        if (conn != null) {
-          conn.close()
-        }
-      }
-    })
-
-    // 得到num
-    spark.sql(
-      """
-        |select tpl_id,count(tpl_id) num
-        |from (
-        | select tpl_id,pid
-        | from rst_sig
-        | group by tpl_id,pid) t1
-        |group by tpl_id
-        |""".stripMargin)
-      .createOrReplaceTempView("numTab")
-    //        .show(1000,false)
-
-    //    rst_sig.groupBy("tpl_id").max("pid").select("tpl_id","max(pid)").createOrReplaceTempView("numTab")
-
-    spark.sql(
-      """
-        |select *
-        |from numTab
-        |""".stripMargin)
-      .toJSON
-      .rdd
-      .foreach(str => {
-        val nObject = JSON.parseObject(str)
-        val tpl_id = nObject.getString("tpl_id")
-        val num = nObject.getString("num")
-
-        val sqlProxy = new SqlProxy()
-        val client = DataSourceUtil.getConnection
-        try {
-          sqlProxy.executeUpdate(client, "update clip_tpl set num=? where tpl_id=?",
-            Array(num, tpl_id))
-        }
-        catch {
-          case e: Exception => e.printStackTrace()
-        } finally {
-          sqlProxy.shutdown(client)
-        }
-      })
-
-
-    // 改变status为已完成
-    spark.sql(
+    val l1 = spark.sql(
       """
         |select *
         |from clip_task_sig
         |""".stripMargin)
-      .rdd
-      .foreach(x => {
-        val tpl_id = x.getInt(0)
+      .count()
+    if (l1 != 0) {
 
-        val sqlProxy = new SqlProxy()
-        val client = DataSourceUtil.getConnection
+      val searched = spark.sql(
+        """
+          |select tpl_id,
+          |       videoName,
+          |       concat_ws('_', lines_start, lines_end) string_time,
+          |       lines_end - lines_start string_time_long,
+          |       media_id string_vid,
+          |       project_id,
+          |       total_duration_min*1000 totalLong
+          |from recognition2_ocr
+          |join kukai_videos
+          |on videoId = media_id
+          |join clip_task_sig
+          |on recognition2_ocr.OCR_content rlike clip_task_sig.ocr_arr
+          |and department_id = 3
+          |""".stripMargin)
+      //        .createOrReplaceTempView("rst")
+      //        .show(1000,false)
+
+      var last_tpl = 0
+      var cur_timeLong = 0
+      var pid = 1
+
+      searched.coalesce(1)
+        .map(row => {
+          if (last_tpl == row.getInt(0) && cur_timeLong < row.getInt(6)) {
+            cur_timeLong += row.getInt(3)
+          } else {
+            if (last_tpl != row.getInt(0)) {
+              pid = 0
+              last_tpl = row.getInt(0)
+            } else {
+              pid += 1
+              cur_timeLong = row.getInt(3)
+            }
+          }
+          Film(
+            row.getInt(0),
+            "label0",
+            row.getString(1),
+            null,
+            row.getInt(3),
+            row.getInt(6),
+            row.getString(2),
+            "1280*720",
+            row.getString(5),
+            row.getString(4),
+            null,
+            pid
+          )
+        })
+        //      .show(1000,false)
+        .createOrReplaceTempView("pid_ed")
+
+
+
+      //group by (tpl_id,pid),求sum(string_time_long),where sum >= totalLong
+      spark.sql(
+        """
+          |select tpl_id,ppid
+          |from (
+          |  select tpl_id,pid ppid,sum(string_time_long) sumLong,first(totalLong) totalLong
+          |  from pid_ed
+          |  group by tpl_id,pid) t1
+          |where sumLong >= totalLong
+          |""".stripMargin)
+        .createOrReplaceTempView("pid_target")
+      //          .show(1000, false)
+
+      spark.sql("cache table pid_target")
+
+      // pid_ed join pid_target
+      val rst_sig = spark.sql(
+        """
+          |select pid_ed.tpl_id tpl_id,
+          |       label_id,
+          |       pid_ed.pid,
+          |       media_name,
+          |       resolution,
+          |       string_class3_list,
+          |       string_class_img_list,
+          |       string_time,
+          |       string_time_long,
+          |       string_vid,
+          |       project_id
+          |from pid_ed
+          |join pid_target
+          |where pid_ed.tpl_id = pid_target.tpl_id
+          |and pid_ed.pid = pid_target.ppid
+          |""".stripMargin)
+      rst_sig.createOrReplaceTempView("rst_sig")
+
+      //              .show(1000,false)
+
+      // 存入mysql
+      rst_sig.foreachPartition(iterator => {
+
+        var conn: Connection = null
+        var ps: PreparedStatement = null
+
         try {
-          sqlProxy.executeUpdate(client, "update `clip_tpl` set status=1 where tpl_id = ?",
-            Array(tpl_id))
-        }
-        catch {
+          conn = DriverManager.getConnection("jdbc:mysql://vcasltdb.mysql.rds.aliyuncs.com:3306/video_wave?serverTimezone=GMT%2B8", "video_cut_user", "Slt_2020")
+          conn.setAutoCommit(false)
+
+          ps = conn.prepareStatement(
+            """INSERT INTO clip_tpl_result(`id`,`tpl_id`,`label_id`,`pid`,`media_name`,`resolution`,`string_class3_list`,`string_class_img_list`,`string_time`,`string_time_long`,`string_vid`,`create_time`,`project_id`)
+              |VALUES(null,?,?,?,?,?,?,?,?,?,?,null,?)
+              |""".stripMargin)
+          var row = 0
+          iterator.foreach(it => {
+            ps.setInt(1, it.getAs[Int]("tpl_id"))
+            ps.setString(2, it.getAs[String]("label_id"))
+            ps.setInt(3, it.getAs[Int]("pid"))
+            ps.setString(4, it.getAs[String]("media_name"))
+            ps.setString(5, it.getAs[String]("resolution"))
+            ps.setString(6, it.getAs[String]("string_class3_list"))
+            ps.setString(7, it.getAs[String]("string_class_img_list"))
+            ps.setString(8, it.getAs[String]("string_time"))
+            ps.setInt(9, it.getAs[Int]("string_time_long"))
+            ps.setString(10, it.getAs[String]("string_vid"))
+            ps.setString(11, it.getAs[String]("project_id"))
+
+            ps.addBatch()
+            row = row + 1
+            if (row % 1000 == 0) {
+              ps.executeBatch()
+              row = 0
+            }
+          })
+          if (row > 0)
+            ps.executeBatch()
+          conn.commit()
+
+        } catch {
           case e: Exception => e.printStackTrace()
         } finally {
-          sqlProxy.shutdown(client)
+          if (ps != null) {
+            ps.close()
+          }
+          if (conn != null) {
+            conn.close()
+          }
         }
-
       })
-    logWarning("单标签存储完成")
+
+      // 得到num
+      spark.sql(
+        """
+          |select tpl_id,count(tpl_id) num
+          |from (
+          | select tpl_id,pid
+          | from rst_sig
+          | group by tpl_id,pid) t1
+          |group by tpl_id
+          |""".stripMargin)
+        .createOrReplaceTempView("numTab")
+      //        .show(1000,false)
+
+      //    rst_sig.groupBy("tpl_id").max("pid").select("tpl_id","max(pid)").createOrReplaceTempView("numTab")
+
+      spark.sql(
+        """
+          |select *
+          |from numTab
+          |""".stripMargin)
+        .toJSON
+        .rdd
+        .foreach(str => {
+          val nObject = JSON.parseObject(str)
+          val tpl_id = nObject.getString("tpl_id")
+          val num = nObject.getString("num")
+
+          val sqlProxy = new SqlProxy()
+          val client = DataSourceUtil.getConnection
+          try {
+            sqlProxy.executeUpdate(client, "update clip_tpl set num=? where tpl_id=?",
+              Array(num, tpl_id))
+          }
+          catch {
+            case e: Exception => e.printStackTrace()
+          } finally {
+            sqlProxy.shutdown(client)
+          }
+        })
+
+
+      // 改变status为已完成
+      spark.sql(
+        """
+          |select *
+          |from clip_task_sig
+          |""".stripMargin)
+        .rdd
+        .foreach(x => {
+          val tpl_id = x.getInt(0)
+
+          val sqlProxy = new SqlProxy()
+          val client = DataSourceUtil.getConnection
+          try {
+            sqlProxy.executeUpdate(client, "update `clip_tpl` set status=1 where tpl_id = ?",
+              Array(tpl_id))
+          }
+          catch {
+            case e: Exception => e.printStackTrace()
+          } finally {
+            sqlProxy.shutdown(client)
+          }
+
+        })
+    }
+
 
 ///////////////////////////////多标签////////////////////////////
     spark.sql(
@@ -483,7 +492,7 @@ object ocrPoint extends Logging {
           }
         })
 
-    }
+
 
       spark.sql(
         """
@@ -508,7 +517,7 @@ object ocrPoint extends Logging {
 
         })
 
-
+    }
 
     spark.close()
     logWarning("End")
