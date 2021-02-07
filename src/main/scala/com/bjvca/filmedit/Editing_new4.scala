@@ -420,6 +420,7 @@ object Editing_new4 extends Logging {
           |       maxT*1000 maxT,
           |       duration timeLong,
           |       total_duration totalLong,
+          |       total_duration_min totalLong_min,
           |       seat_num,
           |       department,
           |       videoName,
@@ -451,6 +452,7 @@ object Editing_new4 extends Logging {
            |       frame,
            |       timeLong,
            |       totalLong,
+           |       totalLong_min,
            |       project_id,
            |       seat_num,
            |       substring(t3.string_class_img_list1,1,instr(t3.string_class_img_list1,'.png')+3) string_class_img_list
@@ -471,6 +473,7 @@ object Editing_new4 extends Logging {
            |             video_wave.frame,
            |             timeLong*1000 timeLong,
            |             totalLong*1000 totalLong,
+           |             totalLong_min*1000 totalLong_min,
            |             seat_num,
            |             cast(video_wave.string_class_img_list as string) string_class_img_list,
            |             project_id,
@@ -503,6 +506,7 @@ object Editing_new4 extends Logging {
           |       search1.string_class3_list,
           |       search1.string_time_long,
           |       search1.totalLong,
+          |       search1.totalLong_min,
           |       search1.string_time,
           |       search1.resolution,
           |       search1.project_id,
@@ -517,7 +521,7 @@ object Editing_new4 extends Logging {
           |and search1.bT < recognition2_ocr.lines_start
           |and search1.eT > recognition2_ocr.lines_end
           |and OCR_content like CONCAT('%',ocr,'%')
-          |group by tpl_id,label_id,media_name,string_class3_list,string_time_long,totalLong,string_time,resolution,search1.project_id,string_vid,string_class_img_list,seat_num,timeLong
+          |group by tpl_id,label_id,media_name,string_class3_list,string_time_long,totalLong,string_time,resolution,search1.project_id,string_vid,string_class_img_list,seat_num,timeLong,totalLong_min
           |""".stripMargin)
         .createOrReplaceTempView("ranked")
       //        .show(1050,false)
@@ -595,7 +599,9 @@ object Editing_new4 extends Logging {
           |       string_time_long,
           |       string_vid,
           |       project_id,
-          |       rank
+          |       rank,
+          |       timeLong,
+          |       totalLong_min
           |from (
           |   select tpl_id,
           |          label_id,
@@ -610,6 +616,7 @@ object Editing_new4 extends Logging {
           |          rank,
           |          shortSlab,
           |          totalLong,
+          |          totalLong_min,
           |          timeLong,
           |          project_id,
           |          seat_num
@@ -618,11 +625,34 @@ object Editing_new4 extends Logging {
           |or pid <= floor(shortSlab/floor(totalLong/timeLong)) and seat_num = 1
           |""".stripMargin)
 
-      rstDF.createOrReplaceTempView("rst")
+      rstDF.createOrReplaceTempView("rst1")
       //            .show(100,false)
 
+      spark.sql(
+        """
+          |select tpl_id,pid
+          |from
+          | (select tpl_id,pid,sum(string_time_long) sumLong,first(totalLong_min) totalLong_min
+          | from rst1
+          | group by tpl_id,pid) t1
+          |where sumLong >= totalLong_min
+          |""".stripMargin)
+        .createOrReplaceTempView("time_target")
+//        .show(100,false)
 
-      rstDF.foreachPartition(iterator => {
+      val rstFrame = spark.sql(
+        """
+          |select rst1.*
+          |from rst1
+          |join time_target
+          |on rst1.tpl_id = time_target.tpl_id
+          |and rst1.pid = time_target.pid
+          |""".stripMargin)
+//        .show(100,false)
+
+      rstFrame.createOrReplaceTempView("rst")
+
+      rstFrame.foreachPartition(iterator => {
 
         var conn: Connection = null
         var ps: PreparedStatement = null
@@ -674,12 +704,15 @@ object Editing_new4 extends Logging {
 
       spark.sql(
         """
-          |select tpl_id,max(rst.pid) num
-          |from rst
+          |select tpl_id,count(tpl_id) num
+          |from
+          | (select tpl_id,pid
+          | from rst
+          | group by tpl_id,pid) t1
           |group by tpl_id
           |""".stripMargin)
         .createOrReplaceTempView("numTab")
-      //          .show(100,false)
+//                .show(100,false)
 
 
       spark.sql(
