@@ -524,7 +524,7 @@ object Editing_new4 extends Logging {
           |group by tpl_id,label_id,media_name,string_class3_list,string_time_long,totalLong,string_time,resolution,search1.project_id,string_vid,string_class_img_list,seat_num,timeLong,totalLong_min
           |""".stripMargin)
         .createOrReplaceTempView("ranked")
-      //        .show(1050,false)
+//              .show(1050,false)
 
       spark.udf.register("arr_size", (s: scala.collection.mutable.WrappedArray[String]) => s.size)
 
@@ -532,9 +532,9 @@ object Editing_new4 extends Logging {
       spark.sql(
         """
           |select * from (
-          |select tpl_id,resolution,first(seat_num) seat_num,arr_size(collect_set(label_id)) count
+          |select tpl_id,first(seat_num) seat_num,arr_size(collect_set(label_id)) count
           |from ranked
-          |group by tpl_id,resolution)
+          |group by tpl_id)
           |where seat_num=count
           |""".stripMargin)
         //      .show(1000,false)
@@ -546,7 +546,6 @@ object Editing_new4 extends Logging {
           |from ranked
           |join resolution_target
           |on resolution_target.tpl_id=ranked.tpl_id
-          |and resolution_target.resolution=ranked.resolution
           |order by tpl_id,label_id
           |""".stripMargin)
         .createOrReplaceTempView("ranked1")
