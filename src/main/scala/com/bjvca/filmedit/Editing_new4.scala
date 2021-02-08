@@ -4,7 +4,7 @@ import java.sql.{Connection, DriverManager, PreparedStatement}
 
 import com.alibaba.fastjson.JSON
 import com.bjvca.bean.Film
-import com.bjvca.commonutils.{ConfUtils, DataSourceUtil, SqlProxy, TableRegister}
+import com.bjvca.commonutils.{ConfUtils, ConfigurationManager, DataSourceUtil, SqlProxy, TableRegister}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -281,7 +281,7 @@ object Editing_new4 extends Logging {
         var ps: PreparedStatement = null
 
         try {
-          conn = DriverManager.getConnection("jdbc:mysql://vcasltdb.mysql.rds.aliyuncs.com:3306/video_wave?serverTimezone=GMT%2B8", "video_cut_user", "Slt_2020")
+          conn = DriverManager.getConnection(ConfigurationManager.getProperty("jdbc.url"), "video_cut_user", "Slt_2020")
           conn.setAutoCommit(false)
 
           ps = conn.prepareStatement(
@@ -657,7 +657,7 @@ object Editing_new4 extends Logging {
         var ps: PreparedStatement = null
 
         try {
-          conn = DriverManager.getConnection("jdbc:mysql://vcasltdb.mysql.rds.aliyuncs.com:3306/video_wave?serverTimezone=GMT%2B8", "video_cut_user", "Slt_2020")
+          conn = DriverManager.getConnection(ConfigurationManager.getProperty("jdbc.url"), "video_cut_user", "Slt_2020")
           conn.setAutoCommit(false)
 
           ps = conn.prepareStatement(
