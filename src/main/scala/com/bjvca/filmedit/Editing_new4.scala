@@ -515,7 +515,7 @@ object Editing_new4 extends Logging {
           |       search1.seat_num,
           |       search1.timeLong
           |from search1
-          |join recognition2_ocr
+          |left join recognition2_ocr
           |on search1.string_vid = recognition2_ocr.media_id
           |and search1.project_id = recognition2_ocr.project_id
           |and search1.bT < recognition2_ocr.lines_start
