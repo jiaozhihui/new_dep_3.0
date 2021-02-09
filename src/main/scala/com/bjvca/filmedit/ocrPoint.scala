@@ -120,6 +120,16 @@ object ocrPoint extends Logging {
 
         })
 
+      spark.sql(
+        """
+          |select clip_task_sig.*,department
+          |from clip_task_sig
+          |join clip_tpl_class
+          |on clip_task_sig.tpl_id=clip_tpl_class.tpl_id
+          |""".stripMargin)
+        //      .show(1000,false)
+        .createOrReplaceTempView("target_sig")
+
       val searched = spark.sql(
         """
           |select tpl_id,
@@ -132,9 +142,9 @@ object ocrPoint extends Logging {
           |from recognition2_ocr
           |join kukai_videos
           |on videoId = media_id
-          |join clip_task_sig
-          |on recognition2_ocr.OCR_content rlike clip_task_sig.ocr_arr
-          |and department_id = 3
+          |join target_sig
+          |on recognition2_ocr.OCR_content rlike target_sig.ocr_arr
+          |where department = department_id
           |""".stripMargin)
       //        .createOrReplaceTempView("rst")
       //        .show(1000,false)
