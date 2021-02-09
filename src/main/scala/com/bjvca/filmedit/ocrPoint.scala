@@ -94,6 +94,32 @@ object ocrPoint extends Logging {
       .count()
     if (l1 != 0) {
 
+      println("单标签任务:" + l1)
+
+      // 改变status为进行中
+      spark.sql(
+        """
+          |select *
+          |from clip_task_sig
+          |""".stripMargin)
+        .rdd
+        .foreach(x => {
+          val tpl_id = x.getInt(0)
+
+          val sqlProxy = new SqlProxy()
+          val client = DataSourceUtil.getConnection
+          try {
+            sqlProxy.executeUpdate(client, "update `clip_tpl` set status=-2 where tpl_id = ?",
+              Array(tpl_id))
+          }
+          catch {
+            case e: Exception => e.printStackTrace()
+          } finally {
+            sqlProxy.shutdown(client)
+          }
+
+        })
+
       val searched = spark.sql(
         """
           |select tpl_id,
@@ -341,7 +367,31 @@ object ocrPoint extends Logging {
 
     if (l != 0) {
 
-      println(l)
+      println("多标签任务:" + l)
+
+      // 改变status为进行中
+      spark.sql(
+        """
+          |select *
+          |from clip_task_mul
+          |""".stripMargin)
+        .rdd
+        .foreach(x => {
+          val tpl_id = x.getInt(0)
+
+          val sqlProxy = new SqlProxy()
+          val client = DataSourceUtil.getConnection
+          try {
+            sqlProxy.executeUpdate(client, "update `clip_tpl` set status=-2 where tpl_id = ?",
+              Array(tpl_id))
+          }
+          catch {
+            case e: Exception => e.printStackTrace()
+          } finally {
+            sqlProxy.shutdown(client)
+          }
+
+        })
 
       spark.sql(
         """

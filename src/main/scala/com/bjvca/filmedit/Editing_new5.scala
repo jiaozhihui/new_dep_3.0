@@ -104,6 +104,30 @@ object Editing_new5 extends Logging {
     if (l1 != 0) {
       println("单标签任务:" + l1)
 
+      // 改变status为进行中
+      spark.sql(
+        """
+          |select *
+          |from clip_task_sig
+          |""".stripMargin)
+        .rdd
+        .foreach(x => {
+          val tpl_id = x.getInt(0)
+
+          val sqlProxy = new SqlProxy()
+          val client = DataSourceUtil.getConnection
+          try {
+            sqlProxy.executeUpdate(client, "update `clip_tpl` set status=-2 where tpl_id = ?",
+              Array(tpl_id))
+          }
+          catch {
+            case e: Exception => e.printStackTrace()
+          } finally {
+            sqlProxy.shutdown(client)
+          }
+
+        })
+
       spark.sql(
         """
           |select recognition2_behavior.media_id string_vid,
@@ -521,6 +545,30 @@ object Editing_new5 extends Logging {
       .count()
     if (l2 != 0) {
       println("多标签任务:" + l2)
+
+      // 改变status为进行中
+      spark.sql(
+        """
+          |select *
+          |from clip_task_mul
+          |""".stripMargin)
+        .rdd
+        .foreach(x => {
+          val tpl_id = x.getInt(0)
+
+          val sqlProxy = new SqlProxy()
+          val client = DataSourceUtil.getConnection
+          try {
+            sqlProxy.executeUpdate(client, "update `clip_tpl` set status=-2 where tpl_id = ?",
+              Array(tpl_id))
+          }
+          catch {
+            case e: Exception => e.printStackTrace()
+          } finally {
+            sqlProxy.shutdown(client)
+          }
+
+        })
 
       /**
        * 多标签位合成逻辑
