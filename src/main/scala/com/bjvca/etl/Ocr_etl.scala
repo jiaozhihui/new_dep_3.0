@@ -66,16 +66,82 @@ object Ocr_etl {
 
     })
 
+    val noSame = spark.sql(
+      """
+        |select *,ROW_NUMBER() OVER (ORDER BY t1.id ASC) row_num
+        |from
+        | (select t1.id,t1.platform_id,t1.project_id,t1.media_id,t1.lines_start,t1.lines_end,t1.OCR_content,t1.condfid,get_similar(t1.OCR_content,t2.OCR_content) similar
+        | from ocr t1
+        | left join ocr t2
+        | on t1.id = t2.id - 1
+        | order by t1.id) T1
+        |where T1.similar < 0.7
+        |""".stripMargin)
+
+    noSame.createOrReplaceTempView("noSame")
+//      .show(100,false)
+
+    // id_span:0->上一条没有被删除，!0->前续数据被删除的条数
     spark.sql(
       """
-        |select t1.id,t1.platform_id,t1.project_id,t1.media_id,t1.lines_start,t2.lines_end,t1.OCR_content,t1.condfid,get_similar(t1.OCR_content,t2.OCR_content) similar,if(get_similar(t1.OCR_content,t2.OCR_content) > 0.7 and t2.condfid > t1.condfid,t2.OCR_content,t1.OCR_content) OCR_content_r
-        |from ocr t1
-        |left join ocr t2
-        |on t1.id = t2.id - 1
+        |select t1.*,nvl(t1.id - t2.id - 1,0) id_span
+        |from noSame t1
+        |left join noSame t2
+        |on t1.row_num = t2.row_num + 1
+        |""".stripMargin)
+      .createOrReplaceTempView("id_span")
+//      .show(100,false)
+
+    spark.sql(
+      """
+        |select t1.id,
+        |       t1.platform_id,
+        |       t1.project_id,
+        |       t1.media_id,
+        |       ocr.lines_start,
+        |       t1.lines_end,
+        |       if(t1.condfid > ocr.condfid,t1.OCR_content,ocr.OCR_content) OCR_content,
+        |       if(t1.condfid > ocr.condfid,t1.condfid,ocr.condfid) condfid
+        |from
+        | (select *,id - id_span tar_id
+        | from id_span
+        | where id_span != 0) t1
+        |join ocr
+        |on tar_id = ocr.id
         |order by t1.id
         |""".stripMargin)
-      .where("similar < 0.7 and length(OCR_content) != 0")
-      //      .show(100,false)
+      .createOrReplaceTempView("rep_etl")
+//      .show(100,false)
+
+    spark.sql(
+      """
+        |select id,
+        |       platform_id,
+        |       project_id,
+        |       media_id,
+        |       lines_start,
+        |       lines_end,
+        |       OCR_content,
+        |       condfid
+        |from id_span
+        |where id_span = 0
+        |""".stripMargin)
+      .createOrReplaceTempView("normal")
+//      .show(100,false)
+
+    spark.sql(
+      """
+        |select *
+        |from normal
+        |union all
+        |select *
+        |from rep_etl
+        |""".stripMargin)
+      .where("length(OCR_content) > 0")
+      .orderBy("id")
+//      .show(100,false)
+
+
       .foreachPartition(iterator => {
 
         var conn: Connection = null
