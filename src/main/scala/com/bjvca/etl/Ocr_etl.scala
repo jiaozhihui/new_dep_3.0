@@ -9,7 +9,7 @@ import org.apache.spark.sql.{Row, SparkSession}
 object Ocr_etl {
   def main(args: Array[String]): Unit = {
 
-    val confUtil = new ConfUtils("application.conf")
+    val confUtil = new ConfUtils("application58.conf")
 
     // 创建sparkSession
     val spark: SparkSession = SparkSession.builder()
@@ -25,15 +25,18 @@ object Ocr_etl {
     TableRegister.registMysqlTable(spark, confUtil.videocutMysqlHost, confUtil.videocutMysqlDb,
       confUtil.videocutMysqlUser, confUtil.videocutMysqlPassword, "recognition2_ocr", "recognition2_ocr")
 
+    // 从offset处读取数据,去中文和空格
     spark.sql(
       """
-        |select *
+        |select id,platform_id,project_id,media_id,lines_start,lines_end,condfid,trim(regexp_replace(OCR_content, '[a-zA-Z]+', '')) OCR_content,offset
         |from recognition2_ocr
         |join ocr_offset
         |on id > offset
         |""".stripMargin)
+//      .show(100,false)
       .createOrReplaceTempView("ocr")
 
+    // 获取最大偏移量 max_offset
     var max_offset = 0
     spark.sql(
       """
@@ -71,7 +74,7 @@ object Ocr_etl {
         |on t1.id = t2.id - 1
         |order by t1.id
         |""".stripMargin)
-      .where("similar < 0.7")
+      .where("similar < 0.7 and length(OCR_content) != 0")
       //      .show(100,false)
       .foreachPartition(iterator => {
 
