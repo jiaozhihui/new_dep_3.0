@@ -17,11 +17,8 @@ object SubCut extends Logging {
 
     logWarning("Demo开始运行")
 
-    //    var i = 0
-    //
-    //    while (true) {
 
-    val confUtil = new ConfUtils("application.conf")
+    val confUtil = new ConfUtils("application58.conf")
     //    val confUtil = new ConfUtils("线上application.conf")
 
     // 创建sparkSession
@@ -32,21 +29,19 @@ object SubCut extends Logging {
       .config("spark.debug.maxToStringFields", "200")
       .getOrCreate()
 
-    //      i = i + 1
-    //      logWarning("第" + i + "次合并任务开始...")
 
-    // 0.读取任务表
-    //      spark.read.format("jdbc")
-    //        .options(Map(
-    //          "url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
-    //          "driver" -> "com.mysql.jdbc.Driver",
-    //          "user" -> confUtil.videocutMysqlUser,
-    //          "password" -> confUtil.videocutMysqlPassword,
-    //          "dbtable" -> "task"
-    //        ))
-    //        .load()
-    //        .where("status = 0")
-    //        .createOrReplaceTempView("task")
+//     0.读取任务表
+          spark.read.format("jdbc")
+            .options(Map(
+              "url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
+              "driver" -> "com.mysql.jdbc.Driver",
+              "user" -> confUtil.videocutMysqlUser,
+              "password" -> confUtil.videocutMysqlPassword,
+              "dbtable" -> "task"
+            ))
+            .load()
+            .where("status = 0")
+            .createOrReplaceTempView("task")
 
     // 读取将要用到的表
     // 1.recognition2_behavior
@@ -146,103 +141,107 @@ object SubCut extends Logging {
     // 1.未分组 a0
     spark.sql(
       """
-        |select video_id,
-        |             media_name,
-        |             ad_seat_b_time,
-        |             ad_seat_e_time,
-        |             drama_name,
-        |             drama_type_name,
-        |             media_area_name,
-        |             class2_name,
-        |             class_type_id,
-        |             class3_name,
-        |             ad_seat_img,
-        |             story_start,
-        |             story_end
-        |      from (select recognition2_behavior.media_id   video_id,
-        |                   kukai_videos.videoName           media_name,
-        |                   recognition2_behavior.time_start ad_seat_b_time,
-        |                   recognition2_behavior.time_end   ad_seat_e_time,
-        |                   kukai_videos.category            drama_name,
-        |                   kukai_videos.classify            drama_type_name,
-        |                   kukai_videos.area                media_area_name,
-        |                   recognition2_class.class1_name   class2_name,
-        |                   recognition2_class.class_type    class_type_id,
-        |                   recognition2_class.class2_name   class3_name,
-        |                   recognition2_behavior.object_img ad_seat_img,
-        |                   story_start,
-        |                   story_end
-        |            from recognition2_behavior
-        |                     join recognition2_class
-        |                          on recognition2_behavior.class_id = recognition2_class.class_id
-        |                     join kukai_videos
-        |                          on kukai_videos.videoId = media_id
-        |                     join recognition2_videostory
-        |                          on recognition2_behavior.media_id = recognition2_videostory.media_id
-        |            union all
-        |            select recognition2_face.media_id     video_id,
-        |                   kukai_videos.videoName         media_name,
-        |                   recognition2_face.time_start   ad_seat_b_time,
-        |                   recognition2_face.time_end     ad_seat_e_time,
-        |                   kukai_videos.category          drama_name,
-        |                   kukai_videos.classify          drama_type_name,
-        |                   kukai_videos.area              media_area_name,
-        |                   recognition2_class.class1_name class2_name,
-        |                   recognition2_class.class_type  class_type_id,
-        |                   recognition2_class.class2_name class3_name,
-        |                   recognition2_face.object_img   ad_seat_img,
-        |                   story_start,
-        |                   story_end
-        |            from recognition2_face
-        |                     join recognition2_class
-        |                          on recognition2_face.class_id = recognition2_class.class_id
-        |                     join kukai_videos
-        |                          on kukai_videos.videoId = media_id
-        |                     join recognition2_videostory
-        |                          on recognition2_face.media_id = recognition2_videostory.media_id
-        |            union all
-        |            select recognition2_object.media_id   video_id,
-        |                   kukai_videos.videoName         media_name,
-        |                   recognition2_object.time_start ad_seat_b_time,
-        |                   recognition2_object.time_end   ad_seat_e_time,
-        |                   kukai_videos.category          drama_name,
-        |                   kukai_videos.classify          drama_type_name,
-        |                   kukai_videos.area              media_area_name,
-        |                   recognition2_class.class1_name class2_name,
-        |                   recognition2_class.class_type  class_type_id,
-        |                   recognition2_class.class2_name class3_name,
-        |                   recognition2_object.object_img ad_seat_img,
-        |                   story_start,
-        |                   story_end
-        |            from recognition2_object
-        |                     join recognition2_class
-        |                          on recognition2_object.class_id = recognition2_class.class_id
-        |                     join kukai_videos
-        |                          on kukai_videos.videoId = media_id
-        |                     join recognition2_videostory
-        |                          on recognition2_object.media_id = recognition2_videostory.media_id
-        |            union all
-        |            select recognition2_scene.media_id    video_id,
-        |                   kukai_videos.videoName         media_name,
-        |                   recognition2_scene.time_start  ad_seat_b_time,
-        |                   recognition2_scene.time_end    ad_seat_e_time,
-        |                   kukai_videos.category          drama_name,
-        |                   kukai_videos.classify          drama_type_name,
-        |                   kukai_videos.area              media_area_name,
-        |                   recognition2_class.class1_name class2_name,
-        |                   recognition2_class.class_type  class_type_id,
-        |                   recognition2_class.class2_name class3_name,
-        |                   recognition2_scene.object_img  ad_seat_img,
-        |                   story_start,
-        |                   story_end
-        |            from recognition2_scene
-        |                     join recognition2_class
-        |                          on recognition2_scene.class_id = recognition2_class.class_id
-        |                     join kukai_videos
-        |                          on kukai_videos.videoId = media_id
-        |                     join recognition2_videostory
-        |                          on recognition2_scene.media_id = recognition2_videostory.media_id
-        |           ) b
+        |select t.*
+        |from (
+        |  select video_id,
+        |         media_name,
+        |         ad_seat_b_time,
+        |         ad_seat_e_time,
+        |         drama_name,
+        |         drama_type_name,
+        |         media_area_name,
+        |         class2_name,
+        |         class_type_id,
+        |         class3_name,
+        |         ad_seat_img,
+        |         story_start,
+        |         story_end
+        |  from (select recognition2_behavior.media_id   video_id,
+        |               kukai_videos.videoName           media_name,
+        |               recognition2_behavior.time_start ad_seat_b_time,
+        |               recognition2_behavior.time_end   ad_seat_e_time,
+        |               kukai_videos.category            drama_name,
+        |               kukai_videos.classify            drama_type_name,
+        |               kukai_videos.area                media_area_name,
+        |               recognition2_class.class1_name   class2_name,
+        |               recognition2_class.class_type    class_type_id,
+        |               recognition2_class.class2_name   class3_name,
+        |               recognition2_behavior.object_img ad_seat_img,
+        |               story_start,
+        |               story_end
+        |        from recognition2_behavior
+        |                 left join recognition2_class
+        |                      on recognition2_behavior.class_id = recognition2_class.class_id
+        |                 left join kukai_videos
+        |                      on kukai_videos.videoId = media_id
+        |                 left join recognition2_videostory
+        |                      on recognition2_behavior.media_id = recognition2_videostory.media_id
+        |        union all
+        |        select recognition2_face.media_id     video_id,
+        |               kukai_videos.videoName         media_name,
+        |               recognition2_face.time_start   ad_seat_b_time,
+        |               recognition2_face.time_end     ad_seat_e_time,
+        |               kukai_videos.category          drama_name,
+        |               kukai_videos.classify          drama_type_name,
+        |               kukai_videos.area              media_area_name,
+        |               recognition2_class.class1_name class2_name,
+        |               recognition2_class.class_type  class_type_id,
+        |               recognition2_class.class2_name class3_name,
+        |               recognition2_face.object_img   ad_seat_img,
+        |               story_start,
+        |               story_end
+        |        from recognition2_face
+        |                 left join recognition2_class
+        |                      on recognition2_face.class_id = recognition2_class.class_id
+        |                 left join kukai_videos
+        |                      on kukai_videos.videoId = media_id
+        |                 left join recognition2_videostory
+        |                      on recognition2_face.media_id = recognition2_videostory.media_id
+        |        union all
+        |        select recognition2_object.media_id   video_id,
+        |               kukai_videos.videoName         media_name,
+        |               recognition2_object.time_start ad_seat_b_time,
+        |               recognition2_object.time_end   ad_seat_e_time,
+        |               kukai_videos.category          drama_name,
+        |               kukai_videos.classify          drama_type_name,
+        |               kukai_videos.area              media_area_name,
+        |               recognition2_class.class1_name class2_name,
+        |               recognition2_class.class_type  class_type_id,
+        |               recognition2_class.class2_name class3_name,
+        |               recognition2_object.object_img ad_seat_img,
+        |               story_start,
+        |               story_end
+        |        from recognition2_object
+        |                 left join recognition2_class
+        |                      on recognition2_object.class_id = recognition2_class.class_id
+        |                 left join kukai_videos
+        |                      on kukai_videos.videoId = media_id
+        |                 left join recognition2_videostory
+        |                      on recognition2_object.media_id = recognition2_videostory.media_id
+        |        union all
+        |        select recognition2_scene.media_id    video_id,
+        |               kukai_videos.videoName         media_name,
+        |               recognition2_scene.time_start  ad_seat_b_time,
+        |               recognition2_scene.time_end    ad_seat_e_time,
+        |               kukai_videos.category          drama_name,
+        |               kukai_videos.classify          drama_type_name,
+        |               kukai_videos.area              media_area_name,
+        |               recognition2_class.class1_name class2_name,
+        |               recognition2_class.class_type  class_type_id,
+        |               recognition2_class.class2_name class3_name,
+        |               recognition2_scene.object_img  ad_seat_img,
+        |               story_start,
+        |               story_end
+        |        from recognition2_scene
+        |                 left join recognition2_class
+        |                      on recognition2_scene.class_id = recognition2_class.class_id
+        |                 left join kukai_videos
+        |                      on kukai_videos.videoId = media_id
+        |                 left join recognition2_videostory
+        |                      on recognition2_scene.media_id = recognition2_videostory.media_id
+        |       ) b ) t
+        |       join task
+        |       on task.video_id = t.video_id
         |""".stripMargin)
       .createOrReplaceTempView("a0")
 
@@ -366,7 +365,7 @@ object SubCut extends Logging {
         newObject.put("string_class2_list", string_class2_list)
         newObject.put("string_class_img_list", string_class_img_list)
 
-        newObject.put("resourceId", "2")
+        newObject.put("resourceId", "3")
 
         newObject.toString
 
