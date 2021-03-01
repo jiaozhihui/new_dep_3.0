@@ -28,7 +28,7 @@ object Ocr_etl {
     // 从offset处读取数据,去中文和空格
     spark.sql(
       """
-        |select id,platform_id,project_id,media_id,lines_start,lines_end,condfid,trim(regexp_replace(OCR_content, '[a-zA-Z]+', '')) OCR_content,offset
+        |select id,platform_id,project_id,media_id,lines_start,lines_end,condfid,trim(regexp_replace(OCR_content, '[a-zA-Z\\pP‘’“”]+', '')) OCR_content,offset
         |from recognition2_ocr
         |join ocr_offset
         |on id > offset
