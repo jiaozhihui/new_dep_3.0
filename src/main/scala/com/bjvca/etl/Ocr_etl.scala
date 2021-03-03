@@ -2,9 +2,8 @@ package com.bjvca.etl
 
 import java.sql.{Connection, DriverManager, PreparedStatement}
 
-import com.alibaba.fastjson.JSON
-import com.bjvca.commonutils.{ConfUtils, ConfigurationManager, DataSourceUtil, SqlProxy, TableRegister}
-import org.apache.spark.sql.{Row, SparkSession}
+import com.bjvca.commonutils._
+import org.apache.spark.sql.SparkSession
 
 object Ocr_etl {
   def main(args: Array[String]): Unit = {
