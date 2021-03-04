@@ -34,7 +34,7 @@ object AllCleand10 extends Logging {
       .config("spark.debug.maxToStringFields", "2000")
       .getOrCreate()
 
-    import spark.implicits._
+
 
     // 0.读取任务表
     spark.read.format("jdbc")
@@ -632,13 +632,14 @@ object AllCleand10 extends Logging {
         "es.port" -> "9200"
       ))
 
+      import spark.implicits._
       // 存储一份带台词的数据
       if (rst.count() != 0) {
         spark.read.json(rst).createOrReplaceTempView("rst")
 
         spark.sql(
           """
-            |select rst.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |select rst.*,to_json(collect_list(named_struct('time_range',concat_ws('_', lines_start, lines_end),'word',OCR_content))) ocr_word
             |from rst
             |left join recognition2_ocr_etl
             |on rst.string_vid = recognition2_ocr_etl.media_id
@@ -648,6 +649,12 @@ object AllCleand10 extends Logging {
             |""".stripMargin)
           .toJSON
           .rdd
+          .map(str => {
+            val nObject = JSON.parseObject(str)
+            val arr = nObject.getJSONArray("ocr_word")
+            nObject.replace("ocr_word",arr)
+            nObject.toString
+          })
           .saveJsonToEs("test/doc", Map(
             "es.index.auto.create" -> "true",
             "es.nodes" -> confUtil.adxStreamingEsHost,
@@ -1308,7 +1315,7 @@ object AllCleand10 extends Logging {
 
         spark.sql(
           """
-            |select rst3.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |select rst3.*,to_json(collect_list(named_struct('time_range',concat_ws('_', lines_start, lines_end),'word',OCR_content))) ocr_word
             |from rst3
             |left join recognition2_ocr_etl
             |on rst3.string_vid = recognition2_ocr_etl.media_id
@@ -1318,6 +1325,12 @@ object AllCleand10 extends Logging {
             |""".stripMargin)
           .toJSON
           .rdd
+          .map(str => {
+            val nObject = JSON.parseObject(str)
+            val arr = nObject.getJSONArray("ocr_word")
+            nObject.replace("ocr_word",arr)
+            nObject.toString
+          })
           .saveJsonToEs("test/doc", Map(
             "es.index.auto.create" -> "true",
             "es.nodes" -> confUtil.adxStreamingEsHost,
@@ -1483,7 +1496,7 @@ object AllCleand10 extends Logging {
 
         spark.sql(
           """
-            |select rst2.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |select rst2.*,to_json(collect_list(named_struct('time_range',concat_ws('_', lines_start, lines_end),'word',OCR_content))) ocr_word
             |from rst2
             |left join recognition2_ocr_etl
             |on rst2.string_vid = recognition2_ocr_etl.media_id
@@ -1493,6 +1506,12 @@ object AllCleand10 extends Logging {
             |""".stripMargin)
           .toJSON
           .rdd
+          .map(str => {
+            val nObject = JSON.parseObject(str)
+            val arr = nObject.getJSONArray("ocr_word")
+            nObject.replace("ocr_word",arr)
+            nObject.toString
+          })
           .saveJsonToEs("test/doc", Map(
             "es.index.auto.create" -> "true",
             "es.nodes" -> confUtil.adxStreamingEsHost,
@@ -1883,7 +1902,7 @@ object AllCleand10 extends Logging {
 
         spark.sql(
           """
-            |select or_rst3.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |select or_rst3.*,to_json(collect_list(named_struct('time_range',concat_ws('_', lines_start, lines_end),'word',OCR_content))) ocr_word
             |from or_rst3
             |left join recognition2_ocr_etl
             |on or_rst3.string_vid = recognition2_ocr_etl.media_id
@@ -1893,6 +1912,12 @@ object AllCleand10 extends Logging {
             |""".stripMargin)
           .toJSON
           .rdd
+          .map(str => {
+            val nObject = JSON.parseObject(str)
+            val arr = nObject.getJSONArray("ocr_word")
+            nObject.replace("ocr_word",arr)
+            nObject.toString
+          })
           .saveJsonToEs("test/doc", Map(
             "es.index.auto.create" -> "true",
             "es.nodes" -> confUtil.adxStreamingEsHost,
@@ -2022,7 +2047,7 @@ object AllCleand10 extends Logging {
 
         spark.sql(
           """
-            |select or_rst2.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |select or_rst2.*,to_json(collect_list(named_struct('time_range',concat_ws('_', lines_start, lines_end),'word',OCR_content))) ocr_word
             |from or_rst2
             |left join recognition2_ocr_etl
             |on or_rst2.string_vid = recognition2_ocr_etl.media_id
@@ -2032,6 +2057,12 @@ object AllCleand10 extends Logging {
             |""".stripMargin)
           .toJSON
           .rdd
+          .map(str => {
+            val nObject = JSON.parseObject(str)
+            val arr = nObject.getJSONArray("ocr_word")
+            nObject.replace("ocr_word",arr)
+            nObject.toString
+          })
           .saveJsonToEs("test/doc", Map(
             "es.index.auto.create" -> "true",
             "es.nodes" -> confUtil.adxStreamingEsHost,
