@@ -34,6 +34,8 @@ object AllCleand10 extends Logging {
       .config("spark.debug.maxToStringFields", "2000")
       .getOrCreate()
 
+    import spark.implicits._
+
     // 0.读取任务表
     spark.read.format("jdbc")
       .options(Map(
@@ -173,10 +175,10 @@ object AllCleand10 extends Logging {
           "driver" -> "com.mysql.jdbc.Driver",
           "user" -> confUtil.videocutMysqlUser,
           "password" -> confUtil.videocutMysqlPassword,
-          "dbtable" -> "recognition2_ocr"
+          "dbtable" -> "recognition2_ocr_etl"
         ))
         .load()
-        .createOrReplaceTempView("recognition2_ocr")
+        .createOrReplaceTempView("recognition2_ocr_etl")
 
       // 9.台词清洗偏移量
       spark.read.format("jdbc")
@@ -210,7 +212,7 @@ object AllCleand10 extends Logging {
       spark.sql(
         """
           |select max(id) max_offset
-          |from recognition2_ocr
+          |from recognition2_ocr_etl
           |""".stripMargin)
         //        .createOrReplaceTempView("cur_offset")
         .collect.foreach(row => {
@@ -224,7 +226,7 @@ object AllCleand10 extends Logging {
         spark.sql(
           s"""
              |select id,platform_id,project_id,media_id,lines_start,lines_end,condfid,trim(regexp_replace(OCR_content, '[a-zA-Z\\pP‘’“”]+', '')) OCR_content,offset
-             |from recognition2_ocr
+             |from recognition2_ocr_etl
              |where id > $last_offset
              |""".stripMargin)
           //      .show(100,false)
@@ -630,37 +632,28 @@ object AllCleand10 extends Logging {
         "es.port" -> "9200"
       ))
 
-//      // 存储一份带有字幕的数据到ES
-//      rst.map(_.asInstanceOf[JSONObject])
-//          .mapPartitions(iter => {
-//            var conn: Connection = null
-//            var ps: PreparedStatement = null
-//
-//            try {
-//              conn = DataSourceUtil.getConnection
-//              ps = conn.prepareStatement(
-//                """
-//                  |select lines_start,lines_end,OCR_content from recognition2_ocr_etl where media_id = ? and lines_start > ? and lines_end < ?
-//                  |""".stripMargin)
-//              iter.foreach(it => {
-//                ps.setString(1,it.getString("string_vid"))
-//                ps.setLong(2,it.getString("b_t").toLong)
-//                ps.setLong(3,it.getString("e_t").toLong)
-//
-//                val resultSet = ps.executeQuery()
-//                resultSet
-//              })
-//            } catch {
-//            } finally {
-//              if (ps != null) {
-//                ps.close()
-//              }
-//              if (conn != null) {
-//                conn.close()
-//              }
-//            }
-//
-//          })
+      // 存储一份带台词的数据
+      if (rst.count() != 0) {
+        spark.read.json(rst).createOrReplaceTempView("rst")
+
+        spark.sql(
+          """
+            |select rst.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |from rst
+            |left join recognition2_ocr_etl
+            |on rst.string_vid = recognition2_ocr_etl.media_id
+            |and rst.b_t <= recognition2_ocr_etl.lines_start
+            |and rst.e_t >= recognition2_ocr_etl.lines_end
+            |group by allTagTime,rst.b_t,rst.class3Time,rst.create_time,rst.department_id,rst.e_t,rst.frame,rst.media_name,rst.project_id,rst.resolution,rst.resourceId,rst.string_action_list,rst.string_class2_list,rst.string_class3,rst.string_class3_list,rst.string_class_img_list,rst.string_drama_name,rst.string_drama_type_name,rst.string_man_list,rst.string_media_area_name,rst.string_object_list,rst.string_sence_list,rst.string_time,rst.string_time_long,rst.string_vid,rst.tagRatio,rst.year
+            |""".stripMargin)
+          .toJSON
+          .rdd
+          .saveJsonToEs("test/doc", Map(
+            "es.index.auto.create" -> "true",
+            "es.nodes" -> confUtil.adxStreamingEsHost,
+            "es.port" -> "9200"
+          ))
+      }
 
       logWarning("多标签存入ES成功")
 
@@ -887,15 +880,15 @@ object AllCleand10 extends Logging {
           |              thirddf.story_start story_start,
           |              thirddf.story_end story_end,
           |              thirddf.image image,
-          |              if(recognition2_ocr.lines_start < thirddf.story_start + 2500,1,0) head,
-          |              if(recognition2_ocr.lines_end > thirddf.story_end - 2500,1,0) tail
+          |              if(recognition2_ocr_etl.lines_start < thirddf.story_start + 2500,1,0) head,
+          |              if(recognition2_ocr_etl.lines_end > thirddf.story_end - 2500,1,0) tail
           |       from thirddf
-          |       left join recognition2_ocr
-          |       on thirddf.platform_id = recognition2_ocr.platform_id
-          |       and thirddf.project_id = recognition2_ocr.project_id
-          |       and thirddf.media_id = recognition2_ocr.media_id
-          |       and recognition2_ocr.lines_start < thirddf.story_end
-          |       and recognition2_ocr.lines_end > thirddf.story_start) t1
+          |       left join recognition2_ocr_etl
+          |       on thirddf.platform_id = recognition2_ocr_etl.platform_id
+          |       and thirddf.project_id = recognition2_ocr_etl.project_id
+          |       and thirddf.media_id = recognition2_ocr_etl.media_id
+          |       and recognition2_ocr_etl.lines_start < thirddf.story_end
+          |       and recognition2_ocr_etl.lines_end > thirddf.story_start) t1
           |group by platform_id,project_id,media_id,story_start,story_end,image
           |""".stripMargin)
         //        .show(1000,false)
@@ -1308,6 +1301,30 @@ object AllCleand10 extends Logging {
       ))
       logWarning("空标签分镜头存入ES成功")
 
+      // 存储一份带台词的数据
+      if (rst3.count() != 0) {
+
+      spark.read.json(rst3).createOrReplaceTempView("rst3")
+
+        spark.sql(
+          """
+            |select rst3.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |from rst3
+            |left join recognition2_ocr_etl
+            |on rst3.string_vid = recognition2_ocr_etl.media_id
+            |and rst3.b_t <= recognition2_ocr_etl.lines_start
+            |and rst3.e_t >= recognition2_ocr_etl.lines_end
+            |group by rst3.b_t,rst3.class3Time,rst3.create_time,rst3.department_id,rst3.e_t,rst3.frame,rst3.media_name,rst3.project_id,rst3.resolution,rst3.resourceId,rst3.string_action_list,rst3.string_class2_list,rst3.string_class3,rst3.string_class3_list,rst3.string_class_img_list,rst3.string_drama_name,rst3.string_drama_type_name,rst3.string_man_list,rst3.string_media_area_name,rst3.string_object_list,rst3.string_sence_list,rst3.string_time,rst3.string_time_long,rst3.string_vid,rst3.year
+            |""".stripMargin)
+          .toJSON
+          .rdd
+          .saveJsonToEs("test/doc", Map(
+            "es.index.auto.create" -> "true",
+            "es.nodes" -> confUtil.adxStreamingEsHost,
+            "es.port" -> "9200"
+          ))
+      }
+
 
       rst3.groupBy(str => {
         JSON.parseObject(str).getString("string_vid")
@@ -1459,6 +1476,29 @@ object AllCleand10 extends Logging {
         "es.port" -> "9200"
       ))
       logWarning("分镜头存入ES成功")
+
+      // 存储一份带台词的数据
+      if (rst2.count() != 0) {
+        spark.read.json(rst2).createOrReplaceTempView("rst2")
+
+        spark.sql(
+          """
+            |select rst2.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |from rst2
+            |left join recognition2_ocr_etl
+            |on rst2.string_vid = recognition2_ocr_etl.media_id
+            |and rst2.b_t <= recognition2_ocr_etl.lines_start
+            |and rst2.e_t >= recognition2_ocr_etl.lines_end
+            |group by rst2.b_t,rst2.class3Time,rst2.create_time,rst2.department_id,rst2.e_t,rst2.frame,rst2.media_name,rst2.project_id,rst2.resolution,rst2.resourceId,rst2.string_action_list,rst2.string_class2_list,rst2.string_class3,rst2.string_class3_list,rst2.string_class_img_list,rst2.string_drama_name,rst2.string_drama_type_name,rst2.string_man_list,rst2.string_media_area_name,rst2.string_object_list,rst2.string_sence_list,rst2.string_time,rst2.string_time_long,rst2.string_vid,rst2.year
+            |""".stripMargin)
+          .toJSON
+          .rdd
+          .saveJsonToEs("test/doc", Map(
+            "es.index.auto.create" -> "true",
+            "es.nodes" -> confUtil.adxStreamingEsHost,
+            "es.port" -> "9200"
+          ))
+      }
 
 
       rst2.groupBy(str => {
@@ -1807,6 +1847,7 @@ object AllCleand10 extends Logging {
           newObject.put("string_drama_type_name", string_drama_type_name)
           newObject.put("string_media_area_name", string_media_area_name)
           newObject.put("b_t", string_time.split('_').head.toLong)
+          newObject.put("e_t", string_time.split('_').last.toLong)
           newObject.put("string_time", string_time)
           newObject.put("string_time_long", string_time_long)
           newObject.put("string_class3_list", new JSONArray())
@@ -1835,6 +1876,29 @@ object AllCleand10 extends Logging {
         "es.port" -> "9200"
       ))
       logWarning("原始空标签分镜头存入ES成功")
+
+      // 存储一份带台词的数据
+      if (or_rst3.count() != 0) {
+        spark.read.json(or_rst3).createOrReplaceTempView("or_rst3")
+
+        spark.sql(
+          """
+            |select or_rst3.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |from or_rst3
+            |left join recognition2_ocr_etl
+            |on or_rst3.string_vid = recognition2_ocr_etl.media_id
+            |and or_rst3.b_t <= recognition2_ocr_etl.lines_start
+            |and or_rst3.e_t >= recognition2_ocr_etl.lines_end
+            |group by or_rst3.b_t,or_rst3.e_t,or_rst3.class3Time,or_rst3.department_id,or_rst3.frame,or_rst3.media_name,or_rst3.project_id,or_rst3.resolution,or_rst3.resourceId,or_rst3.string_action_list,or_rst3.string_class2_list,or_rst3.string_class3,or_rst3.string_class3_list,or_rst3.string_class_img_list,or_rst3.string_drama_name,or_rst3.string_drama_type_name,or_rst3.string_man_list,or_rst3.string_media_area_name,or_rst3.string_object_list,or_rst3.string_sence_list,or_rst3.string_time,or_rst3.string_time_long,or_rst3.string_vid
+            |""".stripMargin)
+          .toJSON
+          .rdd
+          .saveJsonToEs("test/doc", Map(
+            "es.index.auto.create" -> "true",
+            "es.nodes" -> confUtil.adxStreamingEsHost,
+            "es.port" -> "9200"
+          ))
+      }
 
 
       val or_rst2 = spark.sql(
@@ -1921,6 +1985,7 @@ object AllCleand10 extends Logging {
           newObject.put("string_media_area_name", string_media_area_name)
           newObject.put("string_time", string_time)
           newObject.put("b_t", string_time.split('_').head.toLong)
+          newObject.put("e_t", string_time.split('_').last.toLong)
           newObject.put("string_time_long", string_time_long)
           newObject.put("string_class3_list", string_class3_list)
           newObject.put("string_class3", string_class3_list.toString)
@@ -1951,6 +2016,28 @@ object AllCleand10 extends Logging {
       ))
       logWarning("原始分镜头存入ES成功")
 
+      // 存储一份带台词的数据
+      if (or_rst2.count() != 0) {
+        spark.read.json(or_rst2).createOrReplaceTempView("or_rst2")
+
+        spark.sql(
+          """
+            |select or_rst2.*,to_json(collect_list(str_to_map(concat_ws(':',concat_ws('_', lines_start, lines_end), OCR_content), ',', ':'))) ocr_word
+            |from or_rst2
+            |left join recognition2_ocr_etl
+            |on or_rst2.string_vid = recognition2_ocr_etl.media_id
+            |and or_rst2.b_t <= recognition2_ocr_etl.lines_start
+            |and or_rst2.e_t >= recognition2_ocr_etl.lines_end
+            |group by or_rst2.b_t,or_rst2.e_t,or_rst2.class3Time,or_rst2.department_id,or_rst2.frame,or_rst2.media_name,or_rst2.project_id,or_rst2.resolution,or_rst2.resourceId,or_rst2.string_action_list,or_rst2.string_class2_list,or_rst2.string_class3,or_rst2.string_class3_list,or_rst2.string_class_img_list,or_rst2.string_drama_name,or_rst2.string_drama_type_name,or_rst2.string_man_list,or_rst2.string_media_area_name,or_rst2.string_object_list,or_rst2.string_sence_list,or_rst2.string_time,or_rst2.string_time_long,or_rst2.string_vid
+            |""".stripMargin)
+          .toJSON
+          .rdd
+          .saveJsonToEs("test/doc", Map(
+            "es.index.auto.create" -> "true",
+            "es.nodes" -> confUtil.adxStreamingEsHost,
+            "es.port" -> "9200"
+          ))
+      }
 
       spark.sql(
         """
