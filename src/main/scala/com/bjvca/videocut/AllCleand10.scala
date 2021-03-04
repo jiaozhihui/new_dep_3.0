@@ -694,14 +694,14 @@ object AllCleand10 extends Logging {
       val accStory1 = sc.collectionAccumulator[Story1]("lastStory1")
       var lastStory2 = Story2("", "", "", 0, 1, 0, "")
       val accStory2 = sc.collectionAccumulator[Story2]("lastStory2")
-      var lastStory3 = Story2("", "", "", 0, 1, 0, "")
+//      var lastStory3 = Story2("", "", "", 0, 1, 0, "")
       var lastStory4 = Story3("", "", "", 0, 1, "", 0, 0)
       val accStory4 = sc.collectionAccumulator[Story3]("lastStory4")
 
       // storyList:存储最终合成出来的分镜头
       val storyList1 = sc.collectionAccumulator[Story1]("rst1")
       val storyList2 = sc.collectionAccumulator[Story2]("rst2")
-      val storyList3 = sc.collectionAccumulator[Story2]("rst3")
+//      val storyList3 = sc.collectionAccumulator[Story2]("rst3")
       val storyList4 = sc.collectionAccumulator[Story3]("rst4")
 
       // 获取每个片段后三秒的标签
