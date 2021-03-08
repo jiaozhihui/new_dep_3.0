@@ -175,10 +175,10 @@ object AllCleand10 extends Logging {
           "driver" -> "com.mysql.jdbc.Driver",
           "user" -> confUtil.videocutMysqlUser,
           "password" -> confUtil.videocutMysqlPassword,
-          "dbtable" -> "recognition2_ocr_etl"
+          "dbtable" -> "recognition2_ocr"
         ))
         .load()
-        .createOrReplaceTempView("recognition2_ocr_etl")
+        .createOrReplaceTempView("recognition2_ocr")
 
       // 9.台词清洗偏移量
       spark.read.format("jdbc")
@@ -190,6 +190,7 @@ object AllCleand10 extends Logging {
         ))
         .load()
         .createOrReplaceTempView("ocr_offset")
+
 
       /**
        * 开始清洗逻辑
@@ -212,7 +213,7 @@ object AllCleand10 extends Logging {
       spark.sql(
         """
           |select max(id) max_offset
-          |from recognition2_ocr_etl
+          |from recognition2_ocr
           |""".stripMargin)
         //        .createOrReplaceTempView("cur_offset")
         .collect.foreach(row => {
@@ -220,13 +221,13 @@ object AllCleand10 extends Logging {
       })
 
       // 如果有清洗任务，执行清洗任务，否则不执行
-      if (last_offset != max_offset) {
+      if (last_offset < max_offset) {
 
         // 从offset处读取数据,去中文和空格
         spark.sql(
           s"""
-             |select id,platform_id,project_id,media_id,lines_start,lines_end,condfid,trim(regexp_replace(OCR_content, '[a-zA-Z\\pP‘’“”]+', '')) OCR_content,offset
-             |from recognition2_ocr_etl
+             |select id,platform_id,project_id,media_id,lines_start,lines_end,condfid,trim(regexp_replace(OCR_content, '[a-zA-Z\\pP‘’“”]+', '')) OCR_content
+             |from recognition2_ocr
              |where id > $last_offset
              |""".stripMargin)
           //      .show(100,false)
@@ -396,6 +397,17 @@ object AllCleand10 extends Logging {
       /**
        * 开始标签合成
        */
+
+      // 10.OCR_etl
+      spark.read.format("jdbc")
+        .options(Map("url" -> s"jdbc:mysql://${confUtil.videocutMysqlHost}:3306/video_wave?characterEncoding=utf-8&useSSL=false",
+          "driver" -> "com.mysql.jdbc.Driver",
+          "user" -> confUtil.videocutMysqlUser,
+          "password" -> confUtil.videocutMysqlPassword,
+          "dbtable" -> "recognition2_ocr_etl"
+        ))
+        .load()
+        .createOrReplaceTempView("recognition2_ocr_etl")
 
       logWarning("开始合成")
 
