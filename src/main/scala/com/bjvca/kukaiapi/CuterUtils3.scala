@@ -1,6 +1,6 @@
-package com.bjvca.videocut
+package com.bjvca.kukaiapi
 
-import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
+import com.alibaba.fastjson.{JSONArray, JSONObject}
 
 import scala.collection.mutable.ListBuffer
 

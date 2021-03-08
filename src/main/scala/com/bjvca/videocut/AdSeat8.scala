@@ -1,6 +1,6 @@
 package com.bjvca.videocut
 
-case class AdSeat(
+case class AdSeat8(
                    video_id: String,
                    project_id: String,
                    department_id: String,
@@ -15,7 +15,9 @@ case class AdSeat(
                    ad_seat_e_time: String,
                    ad_seat_img: String,
                    resolution: String,
-                   frame: Int
+                   frame: Int,
+                   tagTime: Long,
+                   year: String
                  )
 
 /**
@@ -34,5 +36,6 @@ case class AdSeat(
  * resolution: String           分辨率
  * frame： Int                  帧数
  * tagTime: String              标签时长（用作分析标签时长占比）
+ * year: String                 年份
  *
  */

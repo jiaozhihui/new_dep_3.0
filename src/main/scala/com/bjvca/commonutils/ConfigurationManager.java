@@ -14,7 +14,7 @@ public class ConfigurationManager {
   static {
     try {
       InputStream inputStream = ConfigurationManager.class.getClassLoader()
-          .getResourceAsStream("comerce.properties");
+          .getResourceAsStream("comerce58.properties");
       prop.load(inputStream);
     } catch (Exception e) {
       e.printStackTrace();

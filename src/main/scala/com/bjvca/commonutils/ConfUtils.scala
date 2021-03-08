@@ -24,6 +24,7 @@ class ConfUtils(confFile:String) extends Serializable {
   val adxStreamingEsHost = load.getString("adx.streaming.es.host")
   val adxStreamingEsUser = load.getString("adx.streaming.es.user")
   val adxStreamingEsPassword = load.getString("adx.streaming.es.password")
+  val adxStreamingEsIndex = load.getString("adx.streaming.es.index")
 
   // mysql
   val adxStreamingMysqlHost = load.getString("adx.streaming.mysql.host")
@@ -34,15 +35,20 @@ class ConfUtils(confFile:String) extends Serializable {
   val adxBatchHDFSHost = load.getString("adx.batch.hdfs.host")
 
   // adseat
-  val adseatMysqlHost = load.getString("adseat.mysql.host")
-  val adseatMysqlUser = load.getString("adseat.mysql.user")
-  val adseatMysqlPassword = load.getString("adseat.mysql.password")
+//  val adseatMysqlHost = load.getString("adseat.mysql.host")
+//  val adseatMysqlUser = load.getString("adseat.mysql.user")
+//  val adseatMysqlPassword = load.getString("adseat.mysql.password")
 
   // videocut
   val videocutMysqlHost = load.getString("videocut.mysql.host")
   val videocutMysqlUser = load.getString("videocut.mysql.user")
   val videocutMysqlPassword = load.getString("videocut.mysql.password")
+  val videocutMysqlDb = load.getString("videocut.mysql.db")
 
   var nowTime = "0"
 
+  // 权重
+  val a: Int = load.getInt("a")
+  val b: Int = load.getInt("b")
+  val c: Int = load.getInt("c")
 }

@@ -1,19 +1,20 @@
 package com.bjvca.videocut
 
-import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
+import com.alibaba.fastjson.{JSONArray, JSONObject}
 
 import scala.collection.mutable.ListBuffer
 
 /**
  * 统一的一套数据结构
  */
-object CuterUtils3 {
+object CuterUtils4 {
 
-  def seatToJSON(seats: ListBuffer[AdSeat]): JSONObject = {
+  def seatToJSON(seats: ListBuffer[AdSeat4]): JSONObject = {
 
     val temp = new JSONObject()
 
     val class3List = new JSONArray()
+    val allTagTime = new JSONObject()
     val manList = new JSONArray()
     val objectList = new JSONArray()
     val actionList = new JSONArray()
@@ -39,58 +40,62 @@ object CuterUtils3 {
       if (seat.ad_seat_b_time.toLong < minBTime) minBTime = seat.ad_seat_b_time.toLong
       if (seat.ad_seat_e_time.toLong > maxETime) maxETime = seat.ad_seat_e_time.toLong
 
-      val file1 = seat.video_id
-      val file2 = seat.media_name
-      val file3 = seat.drama_name
-      val file4 = seat.drama_type_name
-      val file5 = seat.media_area_name
-      //      val file6 = seat.media_release_date
-      val file7 = seat.class_type_id
-      val file8 = seat.class3_name
-      val file9 = seat.class2_name
-      val file10 = seat.ad_seat_img
-      val file11 = seat.department_id
-      val file12 = seat.project_id
-      val file13 = seat.resolution
-      val file14 = seat.frame
+      val video_id = seat.video_id
+      val media_name = seat.media_name
+      val drama_name = seat.drama_name
+      val drama_type_name = seat.drama_type_name
+      val media_area_name = seat.media_area_name
+//      val media_release_date = seat.media_release_date
+      val class_type_id = seat.class_type_id
+      val class3_name = seat.class3_name
+      val class2_name = seat.class2_name
+      val ad_seat_img = seat.ad_seat_img
+      val department_id = seat.department_id
+      val project_id = seat.project_id
+      val resolution = seat.resolution
+      val frame = seat.frame
+      val tagTime = seat.tagTime
 
-      temp.put("string_vid", file1)
-      temp.put("media_name", file2)
-      temp.put("string_drama_name", file3)
-      temp.put("string_drama_type_name", file4)
-      temp.put("string_media_area_name", file5)
-      //      temp.put("string_media_release_date", file6)
-      temp.put("department_id", file11)
-      temp.put("project_id", file12)
-      temp.put("resolution", file13)
-      temp.put("frame", file14)
+      temp.put("string_vid", video_id)
+      temp.put("media_name", media_name)
+      temp.put("string_drama_name", drama_name)
+      temp.put("string_drama_type_name", drama_type_name)
+      temp.put("string_media_area_name", media_area_name)
+//      temp.put("string_media_release_date", media_release_date)
+      temp.put("department_id", department_id)
+      temp.put("project_id", project_id)
+      temp.put("resolution", resolution)
+      temp.put("frame", frame)
 
-      if (!class3List.contains(file8)){
-        class3List.add(file8)
+      if (!class3List.contains(class3_name)){
+        class3List.add(class3_name)
+        allTagTime.put(class3_name,tagTime.toString)
+      } else {
+        allTagTime.replace(class3_name,(allTagTime.getLong(class3_name)+tagTime).toString)
       }
 
-      if (!class2List.contains(file9)){
-        class2List.add(file9)
+      if (!class2List.contains(class2_name)){
+        class2List.add(class2_name)
       }
-      if (!classImgList.contains(file10)){
-        classImgList.add(file10)
+      if (!classImgList.contains(ad_seat_img)){
+        classImgList.add(ad_seat_img)
       }
 
-      file7 match {
+      class_type_id match {
         case "4" =>
-          manList.add(file8)
+          manList.add(class3_name)
           //          man2List.add(file9)
           //          manImgList.add(file10)
         case "1" =>
-          objectList.add(file8)
+          objectList.add(class3_name)
           //          object2List.add(file9)
           //          objectImgList.add(file10)
         case "3" =>
-          actionList.add(file8)
+          actionList.add(class3_name)
           //          action2List.add(file9)
           //          actionImgList.add(file10)
         case "2" =>
-          senceList.add(file8)
+          senceList.add(class3_name)
           //          sence2List.add(file9)
           //          senceImgList.add(file10)
       }
@@ -113,9 +118,11 @@ object CuterUtils3 {
 
     temp.put("string_class_img_list", classImgList)
 //    temp.put("string_man_img_list", manImgList)
-//    temp.put("string_object_img_list", objectImgList)
-//    temp.put("string_action_img_list", actionImgList)
-//    temp.put("string_sence_img_list", senceImgList)
+    //    temp.put("string_object_img_list", objectImgList)
+    //    temp.put("string_action_img_list", actionImgList)
+    //    temp.put("string_sence_img_list", senceImgList)
+
+    temp.put("allTagTime", allTagTime.toString)
 
     var newBT = 0L
     if (minBTime-3000>0){
@@ -129,6 +136,14 @@ object CuterUtils3 {
     temp.put("string_time_long", maxETime - minBTime)
 
     temp.put("resourceId", "1")
+
+    val keys = temp.getJSONObject("allTagTime").keySet()
+    val ratioObject = new JSONObject
+    for (key <- keys.toArray){
+      ratioObject.put(key.toString,(temp.getJSONObject("allTagTime").getString(key.toString).toLong/(maxETime - minBTime).toDouble).formatted("%.2f").toDouble)
+      ratioObject
+    }
+    temp.put("tagRatio",ratioObject.toString)
 
     temp
   }
